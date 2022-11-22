@@ -1,16 +1,15 @@
 ## To modify by developper(s) of the plugin
 
 [plugin-info]
-SHORT_PLUGIN_NAME = 'template'  #to be modified, for instance daqmx then rename the module name:
-# (pymodaq_plugins_template become pymodaq_plugins_daqmx for instance)
+SHORT_PLUGIN_NAME = 's2qt_odmr' 
 
 package-url = 'https://github.com/PyMoDAQ/pymodaq_plugins_template' #to modify
-description = 'some word about your plugin'
+description = 'Plugin to use a Rohde & Schwarz MW source and a NI DAQmx card to perform ODMR measurements'
 
-author = 'Author Name'
-author-email = 'Author email'
+author = 'Aurore Finco'
+author-email = 'aurore.finco@umontpellier.fr'
 license = 'MIT'
 
 [plugin-install]
 #packages required for your plugin:
-packages-required = []
+packages-required = ['pymodaq_plugins_rohdeschwarz', 'pymodaq_plugins_daqmx']
