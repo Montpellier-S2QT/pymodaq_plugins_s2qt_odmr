@@ -21,8 +21,8 @@ Set of PyMoDAQ plugins for instruments from ???
 Authors
 =======
 
-* First Author  (myemail@xxx.org)
-* Other author (myotheremail@xxx.org)
+* Aurore Finco  (aurore.finco@umontpellier.fr)
+
 
 .. if needed use this field
 
