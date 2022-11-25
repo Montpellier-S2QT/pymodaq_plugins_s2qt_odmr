@@ -8,7 +8,8 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.daq_utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
     DAQ_Move_RSMWsource
-from pymodaq_plugins_daqmx.daq_viewer_plugins.plugins_0D import DAQ_0DViewer_DAQmx
+from pymodaq_plugins_daqmx.daq_viewer_plugins.plugins_0D.daq_0Dviewer_DAQmx \
+import DAQ_0DViewer_DAQmx
 # shared UnitRegistry from pint initialized in __init__.py
 # from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
