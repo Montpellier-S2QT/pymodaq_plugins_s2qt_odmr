@@ -6,7 +6,8 @@ from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
 from pymodaq.utils.parameter import Parameter
 from pymodaq.daq_utils.parameter import utils as putils
-from pymodaq_plugins_rohdeschwarz.daq_move_plugins import DAQ_Move_RSMWsource
+from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
+    DAQ_Move_RSMWsource
 from pymodaq_plugins_daqmx.daq_viewer_plugins.plugins_0D import DAQ_0DViewer_DAQmx
 # shared UnitRegistry from pint initialized in __init__.py
 # from pymodaq_plugins_s2qt_odmr import ureg, Q_
@@ -79,13 +80,12 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         ## TODO for your custom plugin
         # get the x_axis (you may want to to this also in the commit settings if x_axis may have changed
         if initialized:
-            data_x_axis = self.controller.your_method_to_get_the_x_axis() # if possible
+            data_x_axis = np.linspace(2850, 2890, 50)
             self.x_axis = Axis(data=data_x_axis, label='', units='')
         # TODO for your custom plugin. Initialize viewers pannel with the future type of data
         self.data_grabed_signal_temp.emit(
-            [DataFromPlugins(name='Mock1', data=[np.array([0., 0., ...]),
-                                                 np.array([0., 0., ...])],
-                             dim='Data1D', labels=['Mock1', 'label2'],
+            [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
+                             dim='Data1D', labels=['ODMR'],
                              x_axis=self.x_axis)])
         # note: you could either emit the x_axis once (or a given place in the code) using self.emit_x_axis() as shown
         # above. Or emit it at every grab filling it the x_axis key of DataFromPlugins)
