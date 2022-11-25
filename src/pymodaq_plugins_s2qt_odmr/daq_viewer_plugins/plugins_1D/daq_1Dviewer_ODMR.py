@@ -55,7 +55,7 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
               {"title": "Sweep mode?", "name": "sweep", "type": "bool",
                "value": True},
               {"title": "Number of ranges", "name": "nb_ranges",
-               "type": int, "value": 1, "min": 1},
+               "type": "int", "value": 1, "min": 1},
               {"title": "Ranges parameters", "name": "range0", "type":
                "group", "children":[
                    {"title": "Start (MHz):", "name": "start", "type": "float",
