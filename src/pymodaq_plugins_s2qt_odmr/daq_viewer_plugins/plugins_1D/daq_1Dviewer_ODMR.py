@@ -10,6 +10,8 @@ from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
     DAQ_Move_RSMWsource
 from pymodaq_plugins_daqmx.daq_viewer_plugins.plugins_0D.daq_0Dviewer_DAQmx \
 import DAQ_0DViewer_DAQmx
+from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
+    Edge
 # shared UnitRegistry from pint initialized in __init__.py
 # from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
@@ -22,10 +24,51 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
     inheritance of DAQ_0DViewer_DAQmx and DAQ_Move_RSMWsource.
     """
     params = comon_parameters + [
-        ## TODO for your custom plugin
-        # elements to be added here as dicts in order to control your custom stage
-        ############
-        ]
+         {"title": "MW source settings", "name": "mwsettings", "type":
+          "group", "children": [
+              {"title": "Address:", "name": "address", "type": "str",
+               "value": ""},
+              {"title": "Power (dBm):", "name": "power", "type": "float",
+               "value": 0}
+          ]},
+         {"title": "Counter Settings:", "name": "counter_settings",
+          "type": "group", "visible": True, "children": [
+              {"title": "Counting time (ms):", "name": "counting_time",
+                 "type": "float", "value": 100., "default": 100., "min": 0.},
+              {"title": "Counting Channels:", "name": "counter_channels",
+               "type": "groupcounter",
+               "limits": DAQmx.get_NIDAQ_channels(source_type="Counter")},
+              {"title": "Trigger Settings:", "name": "trigger_settings",
+               "type": "group", "visible": True, "children": [
+                   {"title": "Enable?:", "name": "enable", "type": "bool",
+                    "value": False, },
+                   {"title": "Trigger Source:", "name": "trigger_channel",
+                    "type": "list", "limits": DAQmx.getTriggeringSources()},
+                   {"title": "Edge type:", "name": "edge", "type": "list",
+                    "limits": Edge.names(), "visible": False},
+                   {"title": "Level:", "name": "level", "type": "float",
+                    "value": 1., "visible": False}
+               ]}
+          ]},
+        {"title": "Acquisition settings", "name": "acq_settings", "type":
+          "group", "children": [
+              {"title": "Sweep mode?", "name": "sweep", "type": "bool",
+               "value": True},
+              {"title": "Number of ranges", "name": "nb_ranges",
+               "type": int, "value": 1, "min": 1},
+              {"title": "Ranges parameters", "name": "range0", "type":
+               "group", "children":[
+                   {"title": "Start (MHz):", "name": "start", "type": "float",
+                    "value": 2820},
+                   {"title": "Stop (MHz):", "name": "stop", "type": "float",
+                    "value": 2920},
+                   {"title": "Step (MHz):", "name": "step", "type": "float",
+                    "value": 2},
+               ]},
+              {"title": "List mode?", "name": "list", "type": "bool",
+               "value": False}
+          ]}
+    ]
 
     def __init__(self, parent=None, params_state=None):
         DAQ_0DViewer_DAQmx.__init__(self, parent, params_state)
