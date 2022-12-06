@@ -13,7 +13,7 @@ import DAQ_0DViewer_DAQmx
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
     Edge
 # shared UnitRegistry from pint initialized in __init__.py
-# from pymodaq_plugins_s2qt_odmr import ureg, Q_
+from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
 
 class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
@@ -33,7 +33,7 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
           ]},
          {"title": "Counter Settings:", "name": "counter_settings",
           "type": "group", "visible": True, "children": [
-              {"title": "Counting time (ms):", "name": "counting_time",
+              {"title": "Count time (ms):", "name": "counting_time",
                  "type": "float", "value": 100., "default": 100., "min": 0.},
               {"title": "Counting Channels:", "name": "counter_channels",
                "type": "groupcounter",
@@ -56,7 +56,7 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
                "value": True},
               {"title": "Number of ranges", "name": "nb_ranges",
                "type": "int", "value": 1, "min": 1},
-              {"title": "Ranges parameters", "name": "range0", "type":
+              {"title": "Range parameters", "name": "range0", "type":
                "group", "children":[
                    {"title": "Start (MHz):", "name": "start", "type": "float",
                     "value": 2820},
@@ -80,6 +80,12 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         self.counter_controller = None
 
         self.x_axis = None
+        self.start = 2820 * ureg.MHz
+        self.stop = 2920 * ureg.MHz
+        self.step = 2 * ureg.MHz
+        self.sweep_mode = False
+        self.list_mode = False
+        self.nb_ranges = 1
         
 
     def commit_settings(self, param: Parameter):
@@ -92,12 +98,54 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
             A given parameter (within detector_settings) whose value
             has been changed by the user
         """
-        ## TODO for your custom plugin
-        if param.name() == "a_parameter_you've_added_in_self.params":
-           self.controller.your_method_to_apply_this_param_change()
-#        elif ...
-        ##
-        
+        # MW settings
+        DAQ_Move_RSMWsource.commit_settings(self, param)
+        # Counter settings
+        DAQ_0DViewer_DAQmx.commit_settings(self, param)
+        # Freq sweep settings
+        if param.name() == "sweep":
+            if param.value() and self.nb_ranges == 1:
+                self.sweep_mode = True
+                self.list_mode = False
+                self.mw_controller.set_sweep()
+                self.settings.child("list").setValue(False)
+            else: # we consider the use of several ranges as sweep mode for the user,
+                # but the controller needs to be used in list mode
+                self.sweep_mode = False
+                self.list_mode = True
+                self.mw_controller.set_list()
+                if param.value():
+                    self.settings.child("list").setValue(False)
+
+        elif param.name() == "list":
+            if param.value():
+                self.sweep_mode = False
+                self.list_mode = True
+                self.mw_controller.set_list()
+                self.settings.child("sweep").setValue(False)
+            elif self.nb_ranges==1:
+                self.sweep_mode = True
+                self.list_mode = False
+                self.mw_controller.set_sweep()
+                self.settings.child("sweep").setValue(True)
+            else:
+                self.sweep_mode = False
+                self.list_mode = True
+                self.mw_controller.set_list()
+                self.settings.child("sweep").setValue(True)
+                    
+        elif param.name() == "nb_ranges":
+            self.nb_ranges = param.value()
+            self.update_x_axis()
+        elif param.name() == "start":
+            self.start = param.value() * ureg.MHz
+            self.update_x_axis()
+        elif param.name() == "stop":
+            self.stop = param.value() * ureg.MHz
+            self.update_x_axis()
+        elif param.name() == "step":
+            self.step = param.value() * ureg.MHz
+            self.update_x_axis()
 
     def ini_detector(self, controller=None):
         """Detector communication initialization
@@ -121,18 +169,20 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
 
         initialized = status_mw[1] and status_counter.initialized
         info = f"MW source {status_mw[0]}, counter {status_counter.info}"
-        ## TODO for your custom plugin
-        # get the x_axis (you may want to to this also in the commit settings if x_axis may have changed
+
         if initialized:
-            data_x_axis = np.linspace(2850, 2890, 50)
-            self.x_axis = Axis(data=data_x_axis, label='', units='')
-        # TODO for your custom plugin. Initialize viewers pannel with the future type of data
+            self.settings.child("address").setValue(
+                self.mw_controller.get_address())
+            self.settings.child("power").setValue(
+                self.mw_controller.get_power().magnitude)
+            self.update_x_axis()
+            
+        # Initialize viewers panel with the future type of data
         self.data_grabed_signal_temp.emit(
             [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
                              dim='Data1D', labels=['ODMR'],
                              x_axis=self.x_axis)])
-        # note: you could either emit the x_axis once (or a given place in the code) using self.emit_x_axis() as shown
-        # above. Or emit it at every grab filling it the x_axis key of DataFromPlugins)
+       
         return info, initialized
 
     def close(self):
@@ -146,40 +196,48 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         Parameters
         ----------
         Naverage: int
-            Number of hardware averaging (if hardware averaging is possible, self.hardware_averaging should be set to
-            True in class preamble and you should code this implementation)
+            Number of hardware averaging, not relevant here.
         kwargs: dict
             others optionals arguments
         """
-        ## TODO for your custom plugin
+        if self.sweep_mode:
+            self.mw_controller.set_sweep(start=self.start, stop=self.stop,
+                                         step=self.step,
+                                         power=Q_(self.settings.child("power").value(),
+                                                  ureg.dBm))
+            self.mw_controller.sweep_on()
+
+        else:
+            self.emit_status(ThreadCommand('Update_Status',
+                                           ['List not supported yet']))
 
         ##synchrone version (blocking function)
         data_tot = self.controller.your_method_to_start_a_grab_snap()
         self.data_grabed_signal.emit([DataFromPlugins(name='Mock1', data=data_tot,
                                                       dim='Data1D', labels=['dat0', 'data1'])])
-        # note: you could either emit the x_axis once (or a given place in the code) using self.emit_x_axis() as shown
-        # above. Or emit it at every grab filling it the x_axis key of DataFromPlugins, not shown here)
-
-        ##asynchrone version (non-blocking function with callback)
-        self.controller.your_method_to_start_a_grab_snap(self.callback)
-        #########################################################
-
-
-    def callback(self):
-        """optional asynchrone method called when the detector has finished its acquisition of data"""
-        data_tot = self.controller.your_method_to_get_data_from_buffer()
-        self.data_grabed_signal.emit([DataFromPlugins(name='Mock1', data=data_tot,
-                                                      dim='Data1D', labels=['dat0', 'data1'])])
+       
 
     def stop(self):
-        """Stop the current grab hardware wise if necessary"""
-        ## TODO for your custom plugin
-        raise NotImplemented  # when writing your own plugin remove this line
-        self.controller.your_method_to_stop_acquisition()  # when writing your own plugin replace this line
-        self.emit_status(ThreadCommand('Update_Status', ['Some info you want to log']))
+        """Stop the current grab hardware wise if necessary."""
+        self.counter_controller.close()
+        self.mw_controller.mw_off()  # when writing your own plugin replace this line
+        self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
         ##############################
         return ''
 
+
+    def update_x_axis(self):
+        """Create the frequency list for the ODMR measurement."""
+        if self.nb_ranges == 1:
+            # we can use the sweep mode.
+            freqs = np.arange(self.start.to(ureg.MHz).magnitude,
+                              (self.stop + self.step).to(ureg.MHz).magnitude,
+                              self.stepto(ureg.MHz).magnitude)
+            self.x_axis = Axis(data=freqs, label="Frequency", units="MHz")
+        else:
+            self.emit_status(ThreadCommand('Update_Status',
+                                           ['Several ranges not supported yet']))
+        
 
 if __name__ == '__main__':
     main(__file__)
