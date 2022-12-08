@@ -74,7 +74,7 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
               {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
                   'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
               {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
-                'limits': DAQmx.get_NIDAQ_channels(source_type='Digital_Output')},
+                'limits': DAQmx.getTriggeringSources()},
               ]}
         
     ]
