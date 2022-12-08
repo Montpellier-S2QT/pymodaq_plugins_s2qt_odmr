@@ -195,7 +195,9 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
             self.data_grabed_signal_temp.emit(
                 [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
                                  dim='Data1D', labels=['ODMR'],
-                                 x_axis=self.x_axis)])     
+                                 x_axis=self.x_axis),
+                 DataFromPlugins(name='Topo', data=[0],
+                                 dim='Data0D', labels=['Topo'])])     
         return info, initialized
 
     def close(self):
