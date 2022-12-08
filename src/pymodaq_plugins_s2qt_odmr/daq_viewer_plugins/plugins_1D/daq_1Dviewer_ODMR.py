@@ -8,20 +8,19 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.daq_utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
     DAQ_Move_RSMWsource
-from pymodaq_plugins_daqmx.daq_viewer_plugins.plugins_0D.daq_0Dviewer_DAQmx \
-import DAQ_0DViewer_DAQmx
+from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
     Edge
 # shared UnitRegistry from pint initialized in __init__.py
 from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
 
-class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
-    """ Plugin generating a hybrid 1D viewer based on a RS MW source
+class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
+    """ Plugin generating a 1D viewer based on a RS MW source
     and a NI card based counter to perform ODMR measurement of
     fluorescent defects. This object inherits all functionality to
-    communicate with PyMoDAQ Module, MW source and NI card through
-    inheritance of DAQ_0DViewer_DAQmx and DAQ_Move_RSMWsource.
+    communicate with PyMoDAQ Module and MW source through
+    inheritance of DAQ_Move_RSMWsource and DAQ_Viewer_base.
     """
     params = comon_parameters + [
          {"title": "MW source settings", "name": "mwsettings", "type":
@@ -31,18 +30,18 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
               {"title": "Power (dBm):", "name": "power", "type": "float",
                "value": 0}
           ]},
-         {"title": "Counter Settings:", "name": "counter_settings",
+         {"title": "Counter settings:", "name": "counter_settings",
           "type": "group", "visible": True, "children": [
               {"title": "Count time (ms):", "name": "counting_time",
                  "type": "float", "value": 100., "default": 100., "min": 0.},
-              {"title": "Counting Channels:", "name": "counter_channels",
-               "type": "groupcounter",
+              {"title": "Counting channel:", "name": "counter_channel",
+               "type": "list",
                "limits": DAQmx.get_NIDAQ_channels(source_type="Counter")},
-              {"title": "Trigger Settings:", "name": "trigger_settings",
+              {"title": "Source settings:", "name": "source_settings",
                "type": "group", "visible": True, "children": [
                    {"title": "Enable?:", "name": "enable", "type": "bool",
                     "value": False, },
-                   {"title": "Trigger Source:", "name": "trigger_channel",
+                   {"title": "Photon source:", "name": "photon_channel",
                     "type": "list", "limits": DAQmx.getTriggeringSources()},
                    {"title": "Edge type:", "name": "edge", "type": "list",
                     "limits": Edge.names(), "visible": False},
@@ -67,13 +66,20 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
                ]},
               {"title": "List mode?", "name": "list", "type": "bool",
                "value": False}
-          ]}
+          ]},
+        {"title": "Further NI card settings", "name": "ni_settings", "type":
+          "group", "children": [
+              {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
+                  'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
+              {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
+                'limits': DAQmx.get_NIDAQ_channels(source_type='Digital_Output')},
+              ]}
+        
     ]
 
     def __init__(self, parent=None, params_state=None):
-        DAQ_0DViewer_DAQmx.__init__(self, parent, params_state)
         DAQ_Move_RSMWsource.__init__(self, parent, params_state)
-        
+        DAQ_Viewer_base.__init__(self, parent, params_state)
 
     def ini_attributes(self):
         self.mw_controller = None
@@ -86,6 +92,7 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         self.sweep_mode = False
         self.list_mode = False
         self.nb_ranges = 1
+        self.live = False # True during a continuous grab
         
 
     def commit_settings(self, param: Parameter):
@@ -100,8 +107,7 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         """
         # MW settings
         DAQ_Move_RSMWsource.commit_settings(self, param)
-        # Counter settings
-        DAQ_0DViewer_DAQmx.commit_settings(self, param)
+        
         # Freq sweep settings
         if param.name() == "sweep":
             if param.value() and self.nb_ranges == 1:
@@ -153,10 +159,8 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         Parameters
         ----------
         controller: (object)
-            custom object of a PyMoDAQ plugin (Slave case). None if only
-            one actuator/detector by controller
-            (Master case)
-        MIGHT BE AN ISSUE !!!
+            custom object of a PyMoDAQ plugin. Do not use the ODMR
+            in Slave configuration!!!
         
         Returns
         -------
@@ -164,31 +168,38 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         initialized: bool
             False if initialization failed otherwise True
         """
-        status_mw = DAQ_Move_RSMWsource.ini_stage(self, controller)
-        status_counter = DAQ_0DViewer_DAQmx.ini_detector(self, controller)
+        self.mw_controller = MW_source()
+        mw_initialized = self.mw_controller.open_communication(
+            address=self.settings.child("mwsettings", "address").value())
+        
+        try:
+            self.counter_controller = DAQmx()
+            self.update_task()
+            counter_initialized = True
+        except:
+            counter_initialized = False
 
-        initialized = status_mw[1] and status_counter.initialized
-        info = f"MW source {status_mw[0]}, counter {status_counter.info}"
+        initialized = mw_initialized and counter_initialized
+        info = "Error"
 
         if initialized:
+            info = f"MW source {self.mw_controller.model}"
             self.settings.child("address").setValue(
                 self.mw_controller.get_address())
             self.settings.child("power").setValue(
                 self.mw_controller.get_power().magnitude)
             self.update_x_axis()
-            
-        # Initialize viewers panel with the future type of data
-        self.data_grabed_signal_temp.emit(
-            [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
-                             dim='Data1D', labels=['ODMR'],
-                             x_axis=self.x_axis)])
-       
+            # Initialize viewers panel with the future type of data
+            self.data_grabed_signal_temp.emit(
+                [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
+                                 dim='Data1D', labels=['ODMR'],
+                                 x_axis=self.x_axis)])     
         return info, initialized
 
     def close(self):
         """Terminate the communication protocol"""
         DAQ_Move_RSMWsource.close(self)
-        DAQ_0DViewer_DAQmx.close(self)
+        self.counter_controller.close()
         
     def grab_data(self, Naverage=1, **kwargs):
         """Start a grab from the detector
@@ -200,29 +211,51 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         kwargs: dict
             others optionals arguments
         """
-        if self.sweep_mode:
-            self.mw_controller.set_sweep(start=self.start, stop=self.stop,
-                                         step=self.step,
-                                         power=Q_(self.settings.child("power").value(),
-                                                  ureg.dBm))
-            self.mw_controller.sweep_on()
+        update = False # to decide if we do the initial set up or not
+        self.mw_controller.reset_position()
+        
+        if 'live' in kwargs:
+            if kwargs['live'] != self.live:
+                update = True # we are not already live
+            self.live = kwargs['live']
 
-        else:
-            self.emit_status(ThreadCommand('Update_Status',
-                                           ['List not supported yet']))
+        if update:
+            self.update_task()
+            odmr_length = len(self.x_axis["data"])
+            if self.sweep_mode:
+                self.mw_controller.set_sweep(start=self.start, stop=self.stop,
+                                             step=self.step,
+                                             power=Q_(self.settings.child("power").value(),
+                                                      ureg.dBm))
+                self.mw_controller.sweep_on()
+            else:
+                self.emit_status(ThreadCommand('Update_Status',
+                                               ['List mode not supported yet']))
+                return
+            
 
         ##synchrone version (blocking function)
-        data_tot = self.controller.your_method_to_start_a_grab_snap()
-        self.data_grabed_signal.emit([DataFromPlugins(name='Mock1', data=data_tot,
-                                                      dim='Data1D', labels=['dat0', 'data1'])])
+        self.counter_controller.start()
+        
+        acq_time = odmr_length * self.settings.child("counter_settings", "counting_time")/1000
+        data_pl = self.counter_controller.readCounter(odmr_length, counting_time=acq_time)
+
+        clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time")/1000)
+        data_topo = self.counter_controller.readAnalog(1, ClockSettings(frequency = clock_freq,
+                                                                        Nsamples = odmr_length)) 
+        
+        self.data_grabed_signal.emit([DataFromPlugins(name='ODMR', data=[data_pl],
+                                                      dim='Data1D', labels=['PL'],
+                                                      x_axis=self.x_axis),
+                                      DataFromPlugins(name='Topo', data=[np.mean(data_topo)],
+                                                      dim='Data0D', labels=["Topo"])])
        
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
         self.counter_controller.close()
-        self.mw_controller.mw_off()  # when writing your own plugin replace this line
+        self.mw_controller.mw_off()
         self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
-        ##############################
         return ''
 
 
@@ -237,6 +270,32 @@ class DAQ_1DViewer_ODMR(DAQ_0DViewer_DAQmx, DAQ_Move_RSMWsource):
         else:
             self.emit_status(ThreadCommand('Update_Status',
                                            ['Several ranges not supported yet']))
+
+    def update_task(self):
+        """Set up the counting task synchronized with the MW source
+        in the NI card."""
+        
+        self.update_x_axis()
+        self.counter_channel = Counter(name=self.settings.child("counter_settings",
+                                                                "counter_channel").value(),
+                                       source='Counter')
+        self.photon_source = DIChannel(name=self.settings.child("counter_settings",
+                                            "source_settings", "photon_channel").value(),
+                                       source='Digital_Input')
+        self.sync_channel = DOChannel(name=self.settings.child("ni_settings",
+                                                               "sync_channel").value(),
+                                      source="Digital_Output")
+        self.topo_channel = AIChannel(name=self.settings.child("ni_settings",
+                                                               "topo_channel").value(),
+                                      source="Analog_Input")
+
+        clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time")/1000)
+        self.clock_settings = ClockSettings(frequency = clock_freq, repetition = True)
+
+        self.counter_controller.update_task(channels=[self.counter_channel, self.photon_source,
+                                                      self.sync_channel, self.topo_channel],
+                                            clock_settings=self.clock_settings)
+
         
 
 if __name__ == '__main__':
