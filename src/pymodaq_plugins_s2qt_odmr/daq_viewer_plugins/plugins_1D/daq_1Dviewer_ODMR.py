@@ -23,6 +23,8 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
     inheritance of DAQ_Move_RSMWsource and DAQ_Viewer_base.
     """
     params = comon_parameters + [
+        {"title": "Epsilon", "name": "epsilon", "type": "float",
+         "value": 0.1, "visible": False},
          {"title": "MW source settings", "name": "mwsettings", "type":
           "group", "children": [
               {"title": "Address:", "name": "address", "type": "str",
