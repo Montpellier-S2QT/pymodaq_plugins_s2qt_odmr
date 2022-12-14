@@ -4,7 +4,7 @@ from pymodaq.daq_utils.daq_utils import ThreadCommand, getLineInfo, \
     DataFromPlugins, Axis
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
-from pymodaq.utils.parameter import Parameter
+from pymodaq.daq_utils.parameter import Parameter
 from pymodaq.daq_utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
     DAQ_Move_RSMWsource
