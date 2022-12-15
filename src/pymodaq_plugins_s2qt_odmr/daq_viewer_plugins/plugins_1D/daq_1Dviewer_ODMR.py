@@ -77,7 +77,6 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
               ]}
         
     ]
-        
 
     def ini_attributes(self):
         self.mw_controller = None
@@ -90,8 +89,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.sweep_mode = False
         self.list_mode = False
         self.nb_ranges = 1
-        self.live = False # True during a continuous grab
-        
+        self.live = False  # True during a continuous grab
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector
@@ -193,10 +191,10 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             self.update_x_axis()
             # Initialize viewers panel with the future type of data
             self.data_grabed_signal_temp.emit(
-                [DataFromPlugins(name='ODMR', data=[np.array([0., 0., ...])],
+                [DataFromPlugins(name='ODMR', data=[np.zeros(len(self.x_axis['data']))],
                                  dim='Data1D', labels=['ODMR'],
                                  x_axis=self.x_axis),
-                 DataFromPlugins(name='Topo', data=[np.array(0)],
+                 DataFromPlugins(name='Topo', data=[np.array([0])],
                                  dim='Data0D', labels=['Topo'])])     
         return info, initialized
 
@@ -239,24 +237,24 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.emit_status(ThreadCommand('Update_Status',
                                                ['List mode not supported yet']))
                 return
-            
 
-        ##synchrone version (blocking function)
+        # synchrone version (blocking function)
         self.counter_controller.start()
         
-        acq_time = odmr_length * self.settings.child("counter_settings", "counting_time")/1000
+        acq_time = odmr_length * self.settings.child("counter_settings",
+                                                     "counting_time").value()/1000
         data_pl = self.counter_controller.readCounter(odmr_length, counting_time=acq_time)
 
-        clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time")/1000)
-        data_topo = self.counter_controller.readAnalog(1, ClockSettings(frequency = clock_freq,
-                                                                        Nsamples = odmr_length)) 
+        clock_freq = 1.0 / (self.settings.child("counter_settings",
+                                                "counting_time").value()/1000)
+        data_topo = self.counter_controller.readAnalog(1, ClockSettings(frequency=clock_freq,
+                                                                        Nsamples=odmr_length))
         
         self.data_grabed_signal.emit([DataFromPlugins(name='ODMR', data=[data_pl],
                                                       dim='Data1D', labels=['PL'],
                                                       x_axis=self.x_axis),
                                       DataFromPlugins(name='Topo', data=[np.mean(data_topo)],
                                                       dim='Data0D', labels=["Topo"])])
-       
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
@@ -265,14 +263,13 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
         return ''
 
-
     def update_x_axis(self):
         """Create the frequency list for the ODMR measurement."""
         if self.nb_ranges == 1:
             # we can use the sweep mode.
             freqs = np.arange(self.start.to(ureg.MHz).magnitude,
                               (self.stop + self.step).to(ureg.MHz).magnitude,
-                              self.step.to(ureg.MHz).magnitude)
+                              self.step.to(ureg.MHz).magnitude, dtype=np.float32)
             self.x_axis = Axis(data=freqs, label="Frequency", units="MHz")
         else:
             self.emit_status(ThreadCommand('Update_Status',
@@ -303,7 +300,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                       self.sync_channel, self.topo_channel],
                                             clock_settings=self.clock_settings)
 
-        
 
 if __name__ == '__main__':
     main(__file__)
+
