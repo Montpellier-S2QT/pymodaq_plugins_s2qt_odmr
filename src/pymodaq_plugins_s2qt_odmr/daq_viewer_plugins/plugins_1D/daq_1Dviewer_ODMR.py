@@ -169,7 +169,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         initialized: bool
             False if initialization failed otherwise True
         """
-        self.mw_controller = MW_source()
+        self.mw_controller = MWsource()
         mw_initialized = self.mw_controller.open_communication(
             address=self.settings.child("mwsettings", "address").value())
         
