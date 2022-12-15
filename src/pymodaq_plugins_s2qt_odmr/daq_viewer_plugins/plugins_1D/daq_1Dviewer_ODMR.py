@@ -226,9 +226,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 update = True # we are not already live
             self.live = kwargs['live']
 
+        odmr_length = len(self.x_axis["data"])
         if update:
             self.update_task()
-            odmr_length = len(self.x_axis["data"])
             if self.sweep_mode:
                 self.mw_controller.set_sweep(start=self.start, stop=self.stop,
                                              step=self.step,
