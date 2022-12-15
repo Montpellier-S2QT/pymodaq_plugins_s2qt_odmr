@@ -1,11 +1,11 @@
 import numpy as np
 from easydict import EasyDict as edict
-from pymodaq.daq_utils.daq_utils import ThreadCommand, getLineInfo, \
-    DataFromPlugins, Axis
+from pymodaq.utils.daq_utils import ThreadCommand, getLineInfo
+from pymodaq.utils.data import DataFromPlugins, Axis
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
-from pymodaq.daq_utils.parameter import Parameter
-from pymodaq.daq_utils.parameter import utils as putils
+from pymodaq.utils.parameter import Parameter
+from pymodaq.utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
     Edge, ClockSettings, Counter, DIChannel, DOChannel, AIChannel
