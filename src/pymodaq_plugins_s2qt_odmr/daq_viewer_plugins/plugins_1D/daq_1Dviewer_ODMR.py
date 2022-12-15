@@ -80,8 +80,9 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
     ]
 
     def __init__(self, parent=None, params_state=None):
-        DAQ_Move_RSMWsource.__init__(self, parent, params_state)
         DAQ_Viewer_base.__init__(self, parent, params_state)
+        DAQ_Move_RSMWsource.__init__(self, parent, params_state)
+        
 
     def ini_attributes(self):
         self.mw_controller = None
