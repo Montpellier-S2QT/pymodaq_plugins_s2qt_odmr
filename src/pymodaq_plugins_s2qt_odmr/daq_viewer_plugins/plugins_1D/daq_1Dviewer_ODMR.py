@@ -6,8 +6,6 @@ from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
 from pymodaq.utils.parameter import Parameter
 from pymodaq.daq_utils.parameter import utils as putils
-from pymodaq_plugins_rohdeschwarz.daq_move_plugins.daq_move_RSMWsource import \
-    DAQ_Move_RSMWsource
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
     Edge
@@ -15,12 +13,12 @@ from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
 from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
 
-class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
+class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
     """ Plugin generating a 1D viewer based on a RS MW source
     and a NI card based counter to perform ODMR measurement of
     fluorescent defects. This object inherits all functionality to
-    communicate with PyMoDAQ Module and MW source through
-    inheritance of DAQ_Move_RSMWsource and DAQ_Viewer_base.
+    communicate with PyMoDAQ Module through inheritance of
+    DAQ_Viewer_base.
     """
     params = comon_parameters + [
         {"title": "Epsilon", "name": "epsilon", "type": "float",
@@ -78,10 +76,6 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
               ]}
         
     ]
-
-    def __init__(self, parent=None, params_state=None):
-        DAQ_Viewer_base.__init__(self, parent, params_state)
-        DAQ_Move_RSMWsource.__init__(self, parent, params_state)
         
 
     def ini_attributes(self):
@@ -109,7 +103,11 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
             has been changed by the user
         """
         # MW settings
-        DAQ_Move_RSMWsource.commit_settings(self, param)
+        if param.name() == "address":
+            self.mw_controller.set_address(param.value())
+        elif param.name() == "power":
+            power_to_set = Q_(param.value(), ureg.dBm)
+            self.mw_controller.set_cw_params(power=power_to_set)
         
         # Freq sweep settings
         if param.name() == "sweep":
@@ -203,7 +201,7 @@ class DAQ_1DViewer_ODMR(DAQ_Move_RSMWsource, DAQ_Viewer_base):
 
     def close(self):
         """Terminate the communication protocol"""
-        DAQ_Move_RSMWsource.close(self)
+        self.mw_controller.close_communication()
         self.counter_controller.close()
         
     def grab_data(self, Naverage=1, **kwargs):
