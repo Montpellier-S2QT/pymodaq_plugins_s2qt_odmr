@@ -216,7 +216,10 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             others optionals arguments
         """
         update = False # to decide if we do the initial set up or not
-        self.mw_controller.reset_position()
+        if self.sweep_mode:
+            self.mw_controller.reset_sweep_position()
+        else:
+            self.mw_controller.reset_list_position()
         
         if 'live' in kwargs:
             if kwargs['live'] != self.live:
