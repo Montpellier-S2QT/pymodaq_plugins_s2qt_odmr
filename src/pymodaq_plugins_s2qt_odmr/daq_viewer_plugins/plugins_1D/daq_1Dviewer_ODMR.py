@@ -70,6 +70,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
           ]},
         {"title": "Further NI card settings", "name": "ni_settings", "type":
           "group", "children": [
+              {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
+                  'limits': DAQmx.get_NIDAQ_channels(source_type='Counter')},
               {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
                   'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
               {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
@@ -173,8 +175,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             address=self.settings.child("mwsettings", "address").value())
         
         try:
-            self.counter_controller = DAQmx()
-            self.update_task()
+            self.counter_controller = {"clock":DAQmx(), "counter":DAQmx(), "ai":DAQmx()}
+            self.update_tasks()
             counter_initialized = True
         except:
             counter_initialized = False
@@ -239,6 +241,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 return
 
         # synchrone version (blocking function)
+        # TODO
         self.counter_controller.start()
         
         acq_time = odmr_length * self.settings.child("counter_settings",
@@ -275,30 +278,44 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             self.emit_status(ThreadCommand('Update_Status',
                                            ['Several ranges not supported yet']))
 
-    def update_task(self):
-        """Set up the counting task synchronized with the MW source
+    def update_tasks(self):
+        """Set up the counting tasks synchronized with the MW source
         in the NI card."""
         
         self.update_x_axis()
+        clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
+        self.clock_channel = Counter(self.settings.child("ni_settings",
+                                                         "clock_channel").value(),
+                                     source="Counter", counter_type="Clock Output",
+                                     clock_frequency=clock_freq)
         self.counter_channel = Counter(name=self.settings.child("counter_settings",
                                                                 "counter_channel").value(),
-                                       source='Counter')
-        self.photon_source = DIChannel(name=self.settings.child("counter_settings",
-                                            "source_settings", "photon_channel").value(),
-                                       source='Digital_Input')
-        self.sync_channel = DOChannel(name=self.settings.child("ni_settings",
-                                                               "sync_channel").value(),
-                                      source="Digital_Output")
+                                       source="Counter", counter_type="SemiPeriod Input",
+                                       value_max = 2e6)
+#        self.photon_source = DIChannel(name=self.settings.child("counter_settings",
+#                                            "source_settings", "photon_channel").value(),
+#                                       source='Digital_Input')
+#        self.sync_channel = DOChannel(name=self.settings.child("ni_settings",
+#                                                               "sync_channel").value(),
+#                                      source="Digital_Output")
         self.topo_channel = AIChannel(name=self.settings.child("ni_settings",
                                                                "topo_channel").value(),
                                       source="Analog_Input")
+        
+        #self.clock_settings = ClockSettings(frequency=clock_freq, repetition=True)
 
-        clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
-        self.clock_settings = ClockSettings(frequency=clock_freq, repetition=True)
+        self.counter_controller["clock"].update_task(channels=[self.clock_channel],
+                                                     # do not configure clock yet, so Nsamples=1
+                                                     clock_settings=ClockSettings(Nsamples=1),
+                                                     trigger_settings=TriggerSettings())
+        self.counter_controller["counter"].update_task(channels=[self.counter_channel],
+                                                       clock_settings=ClockSettings(Nsamples=1),
+                                                       trigger_settings=TriggerSettings())
+        self.counter_controller["ai"].update_task(channels=[self.topo_channel],
+                                                       clock_settings=ClockSettings(Nsamples=1),
+                                                       trigger_settings=TriggerSettings())
 
-        self.counter_controller.update_task(channels=[self.counter_channel, self.photon_source,
-                                                      self.sync_channel, self.topo_channel],
-                                            clock_settings=self.clock_settings)
+       
 
 
 if __name__ == '__main__':
