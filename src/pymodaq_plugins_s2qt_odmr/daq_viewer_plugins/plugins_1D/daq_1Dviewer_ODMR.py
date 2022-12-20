@@ -320,15 +320,13 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         # Create channels
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
-        self.clock_channel = Counter(self.settings.child("ni_settings",
+        self.clock_channel = ClockCounter(self.settings.child("ni_settings",
                                                          "clock_channel").value(),
-                                     source="Counter",
-                                     counter_type="Clock Output",
-                                     clock_frequency=clock_freq)
-        self.counter_channel = Counter(name=self.settings.child("counter_settings",
+                                     source="Counter", clock_frequency=clock_freq)
+        
+        self.counter_channel = SemiPeriodCounter(name=self.settings.child("counter_settings",
                                                                 "counter_channel").value(),
-                                       source="Counter", counter_type="SemiPeriod Input",
-                                       value_max=5e6)
+                                       source="Counter", value_max=5e6)
         
         self.topo_channel = AIChannel(name=self.settings.child("ni_settings",
                                                                "topo_channel").value(),
