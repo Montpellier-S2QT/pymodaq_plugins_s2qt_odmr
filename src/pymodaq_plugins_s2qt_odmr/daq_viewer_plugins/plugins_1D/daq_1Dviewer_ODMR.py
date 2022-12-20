@@ -8,7 +8,7 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
-    Edge, ClockSettings, Counter, DIChannel, DOChannel, AIChannel
+    Edge, ClockSettings, Counter, TriggerSettings, AIChannel
 from PyDAQmx import DAQmxConnectTerms, DAQmx_Val_DoNotInvertPolarity, \
     DAQmx_Val_ContSamps, DAQmx_Val_FiniteSamps, DAQmx_Val_CurrReadPos, \
     DAQmx_Val_DoNotOverwriteUnreadSamps, DAQmx_Val_Rising
@@ -178,10 +178,12 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             address=self.settings.child("mwsettings", "address").value())
         
         try:
-            self.counter_controller = {"clock":DAQmx(), "counter":DAQmx(), "ai":DAQmx()}
+            self.counter_controller = {"clock": DAQmx(), "counter": DAQmx(),
+                                       "ai": DAQmx()}
             self.update_tasks()
             counter_initialized = True
-        except:
+        except Exception as e:
+            print(e)
             counter_initialized = False
 
         initialized = mw_initialized and counter_initialized
@@ -320,7 +322,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
         self.clock_channel = Counter(self.settings.child("ni_settings",
                                                          "clock_channel").value(),
-                                     source="Counter", counter_type="Clock Output",
+                                     source="Counter",
+                                     counter_type="Clock Output",
                                      clock_frequency=clock_freq)
         self.counter_channel = Counter(name=self.settings.child("counter_settings",
                                                                 "counter_channel").value(),
