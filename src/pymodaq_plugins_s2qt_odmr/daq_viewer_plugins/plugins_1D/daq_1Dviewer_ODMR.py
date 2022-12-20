@@ -8,7 +8,7 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
-    Edge, ClockSettings, Counter, DIChannel, DOChannel, AIChannel
+    Edge, ClockSettings, Counter, TriggerSettings, AIChannel
 # shared UnitRegistry from pint initialized in __init__.py
 from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
@@ -175,10 +175,12 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             address=self.settings.child("mwsettings", "address").value())
         
         try:
-            self.counter_controller = {"clock":DAQmx(), "counter":DAQmx(), "ai":DAQmx()}
+            self.counter_controller = {"clock": DAQmx(), "counter": DAQmx(),
+                                       "ai": DAQmx()}
             self.update_tasks()
             counter_initialized = True
-        except:
+        except Exception as e:
+            print(e)
             counter_initialized = False
 
         initialized = mw_initialized and counter_initialized
@@ -241,9 +243,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 return
 
         # synchrone version (blocking function)
-        # TODO
         self.counter_controller.start()
-        
         acq_time = odmr_length * self.settings.child("counter_settings",
                                                      "counting_time").value()/1000
         data_pl = self.counter_controller.readCounter(odmr_length, counting_time=acq_time)
@@ -286,12 +286,14 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
         self.clock_channel = Counter(self.settings.child("ni_settings",
                                                          "clock_channel").value(),
-                                     source="Counter", counter_type="Clock Output",
+                                     source="Counter",
+                                     counter_type="Clock Output",
                                      clock_frequency=clock_freq)
         self.counter_channel = Counter(name=self.settings.child("counter_settings",
                                                                 "counter_channel").value(),
-                                       source="Counter", counter_type="SemiPeriod Input",
-                                       value_max = 2e6)
+                                       source="Counter",
+                                       counter_type="SemiPeriod Input",
+                                       value_max=2e6)
 #        self.photon_source = DIChannel(name=self.settings.child("counter_settings",
 #                                            "source_settings", "photon_channel").value(),
 #                                       source='Digital_Input')
@@ -302,7 +304,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                                "topo_channel").value(),
                                       source="Analog_Input")
         
-        #self.clock_settings = ClockSettings(frequency=clock_freq, repetition=True)
+        # self.clock_settings = ClockSettings(frequency=clock_freq, repetition=True)
 
         self.counter_controller["clock"].update_task(channels=[self.clock_channel],
                                                      # do not configure clock yet, so Nsamples=1
@@ -312,10 +314,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                        clock_settings=ClockSettings(Nsamples=1),
                                                        trigger_settings=TriggerSettings())
         self.counter_controller["ai"].update_task(channels=[self.topo_channel],
-                                                       clock_settings=ClockSettings(Nsamples=1),
-                                                       trigger_settings=TriggerSettings())
-
-       
+                                                  clock_settings=ClockSettings(Nsamples=1),
+                                                  trigger_settings=TriggerSettings())
 
 
 if __name__ == '__main__':
