@@ -8,10 +8,10 @@ from pymodaq.utils.parameter import Parameter
 from pymodaq.utils.parameter import utils as putils
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
-    Edge, ClockSettings, Counter, TriggerSettings, AIChannel
+    Edge, ClockSettings, ClockCounter, SemiPeriodCounter, TriggerSettings, AIChannel
 from PyDAQmx import DAQmxConnectTerms, DAQmx_Val_DoNotInvertPolarity, \
-    DAQmx_Val_ContSamps, DAQmx_Val_FiniteSamps, DAQmx_Val_CurrReadPos, \
-    DAQmx_Val_DoNotOverwriteUnreadSamps, DAQmx_Val_Rising
+     DAQmx_Val_ContSamps, DAQmx_Val_FiniteSamps, DAQmx_Val_CurrReadPos, \
+     DAQmx_Val_DoNotOverwriteUnreadSamps, DAQmx_Val_Rising
 # shared UnitRegistry from pint initialized in __init__.py
 from pymodaq_plugins_s2qt_odmr import ureg, Q_
 
@@ -267,23 +267,28 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                             odmr_length+1)
         try:
-            self.counter_controller["counter"].start()
             self.counter_controller["ai"].start()
-        except:
+            self.counter_controller["counter"].start()
+        except Exception as e:
+            print(e)
             self.emit_status(ThreadCommand('Update_Status',
                                                ['Cannot start ODMR counter']))
-            
+            return
+
         try:
             timeout = 10
             self.counter_controller["clock"].start()
             self.counter_controller["clock"].task.WaitUntilTaskDone(timeout*2*odmr_length)
-            
-            
-        
+        except Exception as e:
+            print(e)
+            self.emit_status(ThreadCommand('Update_Status',
+                                               ['Cannot start ODMR clock']))
+            return
+
         acq_time = odmr_length * self.settings.child("counter_settings",
                                                      "counting_time").value()/1000
-        data_pl = self.counter_controller.readCounter(odmr_length, counting_time=acq_time)
-        data_topo = self.counter_controller.readAnalog(1, ClockSettings(
+        data_pl = self.counter_controller["counter"].readCounter(odmr_length, counting_time=acq_time)
+        data_topo = self.counter_controller["ai"].readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
         
@@ -320,18 +325,15 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         # Create channels
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
-        self.clock_channel = ClockCounter(self.settings.child("ni_settings",
-                                                         "clock_channel").value(),
-                                     source="Counter", clock_frequency=clock_freq)
+        self.clock_channel = ClockCounter(clock_freq, name=self.settings.child("ni_settings",
+                                          "clock_channel").value(), source="Counter")
         
-        self.counter_channel = SemiPeriodCounter(name=self.settings.child("counter_settings",
-                                                                "counter_channel").value(),
-                                       source="Counter", value_max=5e6)
+        self.counter_channel = SemiPeriodCounter(5e6, name=self.settings.child("counter_settings",
+                                                 "counter_channel").value(), source="Counter")
+        #self.counter_channel.name = '/'+self.counter_channel.name
         
         self.topo_channel = AIChannel(name=self.settings.child("ni_settings",
-                                                               "topo_channel").value(),
-                                      source="Analog_Input")
-        
+                                      "topo_channel").value(), source="Analog_Input")
 
         # configure tasks
         self.counter_controller["clock"].update_task(channels=[self.clock_channel],
@@ -346,14 +348,14 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                        trigger_settings=TriggerSettings())
 
         # connect the pulses from the clock to the counter
-        self.counter_controller["counter"].task.SetCICtrSemiPeriodTerm(
+        self.counter_controller["counter"].task.SetCISemiPeriodTerm(
             self.counter_channel.name, self.clock_channel.name + "InternalOutput")
         # define the source of ticks for the counter as self._photon_source
         self.counter_controller["counter"].task.SetCICtrTimebaseSrc(
             self.counter_channel.name, self.settings.child("counter_settings",
                                                            "source_settings", "photon_channel").value())
         # connect the clock to the trigger channel to give triggers for the microwave
-        DAQmxConnectTerms(self.clock_channel.name + "InternalOutput",
+        DAQmxConnectTerms("/" + self.clock_channel.name + "InternalOutput",
                           self.settings.child("ni_settings", "sync_channel").value(),
                           DAQmx_Val_DoNotInvertPolarity)
 
