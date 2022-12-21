@@ -349,7 +349,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         # connect the pulses from the clock to the counter
         self.counter_controller["counter"].task.SetCISemiPeriodTerm(
-            self.counter_channel.name, self.clock_channel.name + "InternalOutput")
+            self.counter_channel.name, '/'+self.clock_channel.name + "InternalOutput")
         # define the source of ticks for the counter as self._photon_source
         self.counter_controller["counter"].task.SetCICtrTimebaseSrc(
             self.counter_channel.name, self.settings.child("counter_settings",
