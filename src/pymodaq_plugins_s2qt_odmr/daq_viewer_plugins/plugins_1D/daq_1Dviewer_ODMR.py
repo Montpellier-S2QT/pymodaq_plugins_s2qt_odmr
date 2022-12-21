@@ -300,7 +300,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
-        self.counter_controller.close()
+        for daq_str in self.counter_controller.keys():
+            self.counter_controller[daq_str].close()
         self.mw_controller.mw_off()
         self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
         return ''
