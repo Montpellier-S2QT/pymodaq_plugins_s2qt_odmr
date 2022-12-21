@@ -119,31 +119,31 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.sweep_mode = True
                 self.list_mode = False
                 self.mw_controller.set_sweep()
-                self.settings.child("list").setValue(False)
+                self.settings.child("acq_settings", "list").setValue(False)
             else: # we consider the use of several ranges as sweep mode for the user,
                 # but the controller needs to be used in list mode
                 self.sweep_mode = False
                 self.list_mode = True
                 self.mw_controller.set_list()
                 if param.value():
-                    self.settings.child("list").setValue(False)
+                    self.settings.child("acq_settings", "list").setValue(False)
 
         elif param.name() == "list":
             if param.value():
                 self.sweep_mode = False
                 self.list_mode = True
                 self.mw_controller.set_list()
-                self.settings.child("sweep").setValue(False)
-            elif self.nb_ranges==1:
+                self.settings.child("acq_settings", "sweep").setValue(False)
+            elif self.nb_ranges == 1:
                 self.sweep_mode = True
                 self.list_mode = False
                 self.mw_controller.set_sweep()
-                self.settings.child("sweep").setValue(True)
+                self.settings.child("acq_settings", "sweep").setValue(True)
             else:
                 self.sweep_mode = False
                 self.list_mode = True
                 self.mw_controller.set_list()
-                self.settings.child("sweep").setValue(True)
+                self.settings.child("acq_settings", "sweep").setValue(True)
                     
         elif param.name() == "nb_ranges":
             self.nb_ranges = param.value()
@@ -220,15 +220,16 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         kwargs: dict
             others optionals arguments
         """
-        update = False # to decide if we do the initial set up or not
+        update = True  # to decide if we do the initial set up or not
+        self.commit_settings(self.settings.child("acq_settings", "sweep"))
         if self.sweep_mode:
             self.mw_controller.reset_sweep_position()
         else:
             self.mw_controller.reset_list_position()
         
         if 'live' in kwargs:
-            if kwargs['live'] != self.live:
-                update = True # we are not already live
+            if kwargs['live'] == self.live and self.live:
+                update = False  # we are already live
             self.live = kwargs['live']
 
         odmr_length = len(self.x_axis["data"])
@@ -238,7 +239,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             if self.sweep_mode:
                 self.mw_controller.set_sweep(start=self.start, stop=self.stop,
                                              step=self.step,
-                                             power=Q_(self.settings.child("power").value(),
+                                             power=Q_(self.settings.child("mwsettings", "power").value(),
                                                       ureg.dBm))
                 self.mw_controller.sweep_on()
             else:
@@ -248,6 +249,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         # synchrone version (blocking function)
         # set timing for odmr clock task to the number of pixels
+        self.counter_controller["clock"].stop()  # to ensure that the clock is available
         self.counter_controller["clock"].task.CfgImplicitTiming(DAQmx_Val_FiniteSamps,
                                                                 odmr_length+1)
         # set timing for odmr count task to the number of pixels
