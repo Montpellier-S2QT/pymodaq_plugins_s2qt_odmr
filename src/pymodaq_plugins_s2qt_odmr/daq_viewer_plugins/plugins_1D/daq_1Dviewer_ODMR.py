@@ -262,7 +262,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # unread data in buffer will be overwritten
         self.counter_controller["counter"].task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
         # Topo analog input
-        self.counter_controller["ai"].task.CfgSampClkTiming(self.clock_channel.name + "InternalOutput",
+        self.counter_controller["ai"].task.CfgSampClkTiming('/'+self.clock_channel.name + "InternalOutput",
                                                             self.clock_channel.clock_frequency,
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                             odmr_length+1)
