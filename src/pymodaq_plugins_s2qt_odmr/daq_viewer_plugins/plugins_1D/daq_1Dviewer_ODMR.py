@@ -295,7 +295,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.data_grabed_signal.emit([DataFromPlugins(name='ODMR', data=[data_pl],
                                                       dim='Data1D', labels=['PL'],
                                                       x_axis=self.x_axis),
-                                      DataFromPlugins(name='Topo', data=[np.array(np.mean(data_topo))],
+                                      DataFromPlugins(name='Topo', data=[np.array([np.mean(data_topo)])],
                                                       dim='Data0D', labels=["Topo"])])
 
     def stop(self):
