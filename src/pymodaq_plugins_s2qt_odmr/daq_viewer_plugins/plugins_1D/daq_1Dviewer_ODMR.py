@@ -208,7 +208,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
     def close(self):
         """Terminate the communication protocol"""
         self.mw_controller.close_communication()
-        self.counter_controller.close()
+        self.counter_controller["clock"].close()
+        self.counter_controller["counter"].close()
+        self.counter_controller["ai"].close()
         
     def grab_data(self, Naverage=1, **kwargs):
         """Start a grab from the detector
@@ -264,7 +266,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # unread data in buffer will be overwritten
         self.counter_controller["counter"].task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
         # Topo analog input
-        self.counter_controller["ai"].task.CfgSampClkTiming('/'+self.clock_channel.name + "InternalOutput",
+        print('/' + self.clock_channel.name + "InternalOutput")
+        self.counter_controller["ai"].task.CfgSampClkTiming('/' + self.clock_channel.name + "InternalOutput",
                                                             self.clock_channel.clock_frequency,
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                             odmr_length+1)
