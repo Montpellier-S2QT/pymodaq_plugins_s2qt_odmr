@@ -236,8 +236,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         odmr_length = len(self.x_axis["data"])
         
+        self.update_tasks()
         if update:
-            self.update_tasks()
+#            self.update_tasks()
             if self.sweep_mode:
                 self.mw_controller.set_sweep(start=self.start_f, stop=self.stop_f,
                                              step=self.step_f,
@@ -266,7 +267,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # unread data in buffer will be overwritten
         self.counter_controller["counter"].task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
         # Topo analog input
-        print('/' + self.clock_channel.name + "InternalOutput")
+        print('/' + self.clock_channel.name + "InternalOutput", "update =", update)
         self.counter_controller["ai"].task.CfgSampClkTiming('/' + self.clock_channel.name + "InternalOutput",
                                                             self.clock_channel.clock_frequency,
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
@@ -310,7 +311,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         """Stop the current grab hardware wise if necessary."""
         for daq_str in self.counter_controller.keys():
             self.counter_controller[daq_str].close()
-        self.mw_controller.mw_off()
+        self.mw_controller.off()
         self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
         return ''
 
