@@ -235,10 +235,13 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             self.live = kwargs['live']
 
         odmr_length = len(self.x_axis["data"])
-        
-        self.update_tasks()
-        if update:
-#            self.update_tasks()
+
+        if not update:
+             #self.create_channels()
+             self.configure_tasks()
+             self.connect_channels()
+        else:
+            self.update_tasks()
             if self.sweep_mode:
                 self.mw_controller.set_sweep(start=self.start_f, stop=self.stop_f,
                                              step=self.step_f,
@@ -334,6 +337,15 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.update_x_axis()
 
         # Create channels
+        self.create_channels()
+        # configure tasks
+        self.configure_tasks()
+        # connect everything
+        self.connect_channels()
+        
+
+    def create_channels(self):
+        """ Create the channels in the NI card to update the tasks."""
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
         self.clock_channel = ClockCounter(clock_freq, name=self.settings.child("ni_settings",
                                           "clock_channel").value(), source="Counter")
@@ -345,7 +357,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.topo_channel = AIChannel(name=self.settings.child("ni_settings",
                                       "topo_channel").value(), source="Analog_Input")
 
-        # configure tasks
+    def configure_tasks(self):
+        """ Configure the tasks in the NI card, by calling the update functions of each controller."""
         self.counter_controller["clock"].update_task(channels=[self.clock_channel],
                                                      # do not configure clock yet, so Nsamples=1
                                                      clock_settings=ClockSettings(Nsamples=1),
@@ -357,6 +370,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                        clock_settings=ClockSettings(Nsamples=1),
                                                        trigger_settings=TriggerSettings())
 
+    def connect_channels(self):
+        """ Connect together the channels for synchronization."""
         # connect the pulses from the clock to the counter
         self.counter_controller["counter"].task.SetCISemiPeriodTerm(
             self.counter_channel.name, '/'+self.clock_channel.name + "InternalOutput")
@@ -368,7 +383,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         DAQmxConnectTerms("/" + self.clock_channel.name + "InternalOutput",
                           self.settings.child("ni_settings", "sync_channel").value(),
                           DAQmx_Val_DoNotInvertPolarity)
-
+        
         
 if __name__ == '__main__':
     main(__file__)
