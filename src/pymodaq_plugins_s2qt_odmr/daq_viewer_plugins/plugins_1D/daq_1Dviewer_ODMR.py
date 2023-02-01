@@ -304,14 +304,14 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         data_pl = read_data[:-1:2]
         data_pl += read_data[1:-1:2]
         # we need to divide by the measurement time to get the PL rate!
-        data_pl = data_pl/time_per_point
+        data_pl = 1e-3*data_pl/time_per_point # we show kcts/s
         
         data_topo = self.counter_controller["ai"].readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
         
         self.data_grabed_signal.emit([DataFromPlugins(name='ODMR', data=[data_pl],
-                                                      dim='Data1D', labels=['PL (cts/s)'],
+                                                      dim='Data1D', labels=['PL (kcts/s)'],
                                                       x_axis=self.x_axis),
                                       DataFromPlugins(name='Topo', data=[np.array([np.mean(data_topo)])],
                                                       dim='Data0D', labels=["Topo (nm)"])])
