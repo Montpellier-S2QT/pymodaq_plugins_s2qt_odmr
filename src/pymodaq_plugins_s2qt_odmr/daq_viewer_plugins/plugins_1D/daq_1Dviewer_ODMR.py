@@ -290,18 +290,21 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                ['Cannot start ODMR clock']))
             return
 
-        acq_time = odmr_length * self.settings.child("counter_settings",
+        time_per_point = self.settings.child("counter_settings",
                                                      "counting_time").value()/1000
-        data_pl = self.counter_controller["counter"].readCounter(odmr_length, counting_time=acq_time)
+        acq_time = odmr_length * time_per_point
+        # we need to divide by the measurement time to get the PL rate!
+        data_pl = self.counter_controller["counter"].readCounter(odmr_length,
+                                                counting_time=acq_time)/time_per_point
         data_topo = self.counter_controller["ai"].readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
         
         self.data_grabed_signal.emit([DataFromPlugins(name='ODMR', data=[data_pl],
-                                                      dim='Data1D', labels=['PL'],
+                                                      dim='Data1D', labels=['PL (cts/s)'],
                                                       x_axis=self.x_axis),
                                       DataFromPlugins(name='Topo', data=[np.array([np.mean(data_topo)])],
-                                                      dim='Data0D', labels=["Topo"])])
+                                                      dim='Data0D', labels=["Topo (nm)"])])
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
