@@ -296,7 +296,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                                      "counting_time").value()/1000
         acq_time = odmr_length * time_per_point
         # we need to divide by the measurement time to get the PL rate!
-        data_pl = self.counter_controller["counter"].readCounter(odmr_length,
+        # factor 2 because we integrate only for half the measurement time
+        data_pl = 2*self.counter_controller["counter"].readCounter(odmr_length,
                                                 counting_time=acq_time)/time_per_point
         data_topo = self.counter_controller["ai"].readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
