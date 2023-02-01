@@ -61,11 +61,11 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                "type": "int", "value": 1, "min": 1},
               {"title": "Range parameters", "name": "range0", "type":
                "group", "children":[
-                   {"title": "Start (MHz):", "name": "start", "type": "float",
+                   {"title": "Start (MHz):", "name": "start_f", "type": "float",
                     "value": 2820},
-                   {"title": "Stop (MHz):", "name": "stop", "type": "float",
+                   {"title": "Stop (MHz):", "name": "stop_f", "type": "float",
                     "value": 2920},
-                   {"title": "Step (MHz):", "name": "step", "type": "float",
+                   {"title": "Step (MHz):", "name": "step_f", "type": "float",
                     "value": 2},
                ]},
               {"title": "List mode?", "name": "list", "type": "bool",
@@ -88,9 +88,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.counter_controller = None
 
         self.x_axis = None
-        self.start = 2820 * ureg.MHz
-        self.stop = 2920 * ureg.MHz
-        self.step = 2 * ureg.MHz
+        self.start_f = 2820 * ureg.MHz
+        self.stop_f = 2920 * ureg.MHz
+        self.step_f = 2 * ureg.MHz
         self.sweep_mode = False
         self.list_mode = False
         self.nb_ranges = 1
@@ -148,14 +148,14 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         elif param.name() == "nb_ranges":
             self.nb_ranges = param.value()
             self.update_x_axis()
-        elif param.name() == "start":
-            self.start = param.value() * ureg.MHz
+        elif param.name() == "start_f":
+            self.start_f = param.value() * ureg.MHz
             self.update_x_axis()
-        elif param.name() == "stop":
-            self.stop = param.value() * ureg.MHz
+        elif param.name() == "stop_f":
+            self.stop_f = param.value() * ureg.MHz
             self.update_x_axis()
-        elif param.name() == "step":
-            self.step = param.value() * ureg.MHz
+        elif param.name() == "step_f":
+            self.step_f = param.value() * ureg.MHz
             self.update_x_axis()
 
     def ini_detector(self, controller=None):
@@ -239,8 +239,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         if update:
             self.update_tasks()
             if self.sweep_mode:
-                self.mw_controller.set_sweep(start=self.start, stop=self.stop,
-                                             step=self.step,
+                self.mw_controller.set_sweep(start=self.start_f, stop=self.stop_f,
+                                             step=self.step_f,
                                              power=Q_(self.settings.child("mwsettings", "power").value(),
                                                       ureg.dBm))
                 self.mw_controller.sweep_on()
@@ -315,9 +315,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         """Create the frequency list for the ODMR measurement."""
         if self.nb_ranges == 1:
             # we can use the sweep mode.
-            freqs = np.arange(self.start.to(ureg.MHz).magnitude,
-                              (self.stop + self.step).to(ureg.MHz).magnitude,
-                              self.step.to(ureg.MHz).magnitude, dtype=np.float32)
+            freqs = np.arange(self.start_f.to(ureg.MHz).magnitude,
+                              (self.stop_f + self.step_f).to(ureg.MHz).magnitude,
+                              self.step_f.to(ureg.MHz).magnitude, dtype=np.float32)
             self.x_axis = Axis(data=freqs, label="Frequency", units="MHz")
         else:
             self.emit_status(ThreadCommand('Update_Status',
