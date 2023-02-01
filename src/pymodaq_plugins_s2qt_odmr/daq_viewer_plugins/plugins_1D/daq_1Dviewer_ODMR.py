@@ -239,6 +239,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         if not update:
              self.configure_tasks()
              self.connect_channels()
+             self.mw_controller.sweep_on()
         else:
             self.update_tasks()
             if self.sweep_mode:
