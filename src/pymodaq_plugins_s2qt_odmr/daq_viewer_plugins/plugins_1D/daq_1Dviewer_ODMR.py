@@ -237,7 +237,6 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         odmr_length = len(self.x_axis["data"])
 
         if not update:
-             #self.create_channels()
              self.configure_tasks()
              self.connect_channels()
         else:
@@ -270,7 +269,6 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # unread data in buffer will be overwritten
         self.counter_controller["counter"].task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
         # Topo analog input
-        print('/' + self.clock_channel.name + "InternalOutput", "update =", update)
         self.counter_controller["ai"].task.CfgSampClkTiming('/' + self.clock_channel.name + "InternalOutput",
                                                             self.clock_channel.clock_frequency,
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
@@ -342,7 +340,6 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.configure_tasks()
         # connect everything
         self.connect_channels()
-        
 
     def create_channels(self):
         """ Create the channels in the NI card to update the tasks."""
