@@ -299,7 +299,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
      
         
         read_data = self.counter_controller["counter"].readCounter(2*odmr_length+1,
-                                                counting_time=acq_time)
+                                                    counting_time=acq_time, read_function="")
         # add up adjoint pixels to also get the counts from the low time of the clock
         data_pl = read_data[:-1:2]
         data_pl += read_data[1:-1:2]
