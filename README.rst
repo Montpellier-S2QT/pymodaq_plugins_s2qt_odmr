@@ -1,4 +1,4 @@
-pymodaq_plugins_template (??? Instruments)
+pymodaq_plugins_s2qt_odmr
 ##########################################
 
 .. the following must be adapted to your developped package, links to pypi, github  description...
@@ -15,7 +15,7 @@ pymodaq_plugins_template (??? Instruments)
    :target: https://github.com/PyMoDAQ/pymodaq_plugins_thorlabs
    :alt: Publication Status
 
-Set of PyMoDAQ plugins for instruments from ???
+Set of PyMoDAQ plugins for ODMR experiments in the team S2QT at L2C
 
 
 Authors
@@ -37,33 +37,13 @@ Instruments
 
 Below is the list of instruments included in this plugin
 
-Actuators
-+++++++++
-
-* **yyy**: control of yyy actuators
-* **xxx**: control of xxx actuators
-
-Viewer0D
-++++++++
-
-* **yyy**: control of yyy 0D detector
-* **xxx**: control of xxx 0D detector
-
 Viewer1D
 ++++++++
 
-* **yyy**: control of yyy 1D detector
-* **xxx**: control of xxx 1D detector
-
-
-Viewer2D
-++++++++
-
-* **yyy**: control of yyy 2D detector
-* **xxx**: control of xxx 2D detector
+* **ODMR**: control of a hybrid 1D detector from a SMA/B microwave source from Rohde Schwarz and a NI card.
 
 
 Infos
 =====
 
-if needed for installation or other infos
+You need to install pymodaq_plugins_daqmx and pymodaq_plugins_rohdeschwarz to use this plugin.
