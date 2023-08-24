@@ -12,4 +12,4 @@ license = 'MIT'
 
 [plugin-install]
 #packages required for your plugin:
-packages-required = ['pymodaq_plugins_rohdeschwarz', 'pymodaq_plugins_daqmx']
+packages-required = ['pymodaq_plugins_rohdeschwarz', 'pymodaq_plugins_daqmx', 'pymodaq>=4.0.0']
