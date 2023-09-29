@@ -1,8 +1,9 @@
 import numpy as np
-from easydict import EasyDict as edict
+#from easydict import EasyDict as edict
 
-from pymodaq.utils.daq_utils import ThreadCommand, getLineInfo
-from pymodaq.utils.data import DataFromPlugins, Axis, DataToExport
+from pymodaq.utils.daq_utils import ThreadCommand#, getLineInfo
+from pymodaq.utils.data import DataFromPlugins, Axis, DataToExport,\
+    DataDim, DataDistribution
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
 from pymodaq.utils.parameter import Parameter
@@ -17,6 +18,15 @@ from PyDAQmx import DAQmxConnectTerms, DAQmx_Val_DoNotInvertPolarity, \
 
 # shared UnitRegistry from pint initialized in __init__.py
 from pymodaq_plugins_s2qt_odmr import ureg, Q_
+
+class ODMRcontroller:
+    
+    def __init__(self):
+        self.mw = MWsource()
+        self.counter = DAQmx()
+        self.clock = DAQmx()
+        self.ai = DAQmx()
+        
 
 class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
     """ Plugin generating a 1D viewer based on a RS MW source
@@ -90,23 +100,23 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         """
         # MW settings
         if param.name() == "address":
-            self.controller["mw"].set_address(param.value())
+            self.controller.mw.set_address(param.value())
         elif param.name() == "power":
             power_to_set = Q_(param.value(), ureg.dBm)
-            self.controller["mw"].set_cw_params(power=power_to_set)
+            self.controller.mw.set_cw_params(power=power_to_set)
         
         # Freq sweep settings
         if param.name() == "sweep":
             if param.value() and self.nb_ranges == 1:
                 self.sweep_mode = True
                 self.list_mode = False
-                self.controller["mw"].set_sweep()
+                self.controller.mw.set_sweep()
                 self.settings.child("acq_settings", "list").setValue(False)
             else:  # we consider the use of several ranges as sweep mode for the user,
                 # but the controller needs to be used in list mode
                 self.sweep_mode = False
                 self.list_mode = True
-                self.controller["mw"].set_list()
+                self.controller.mw.set_list()
                 if param.value():
                     self.settings.child("acq_settings", "list").setValue(False)
 
@@ -114,17 +124,17 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             if param.value():
                 self.sweep_mode = False
                 self.list_mode = True
-                self.controller["mw"].set_list()
+                self.controller.mw.set_list()
                 self.settings.child("acq_settings", "sweep").setValue(False)
             elif self.nb_ranges == 1:
                 self.sweep_mode = True
                 self.list_mode = False
-                self.controller["mw"].set_sweep()
+                self.controller.mw.set_sweep()
                 self.settings.child("acq_settings", "sweep").setValue(True)
             else:
                 self.sweep_mode = False
                 self.list_mode = True
-                self.controller["mw"].set_list()
+                self.controller.mw.set_list()
                 self.settings.child("acq_settings", "sweep").setValue(True)
                     
         elif param.name() == "nb_ranges":
@@ -155,9 +165,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         initialized: bool
             False if initialization failed otherwise True
         """
-        self.controller = {"mw": MWsource(),
-                           "counter": {"clock": DAQmx(), "counter": DAQmx(), "ai": DAQmx()}}
-        mw_initialized = self.controller["mw"].open_communication(
+        self.controller = self.ini_detector_init(old_controller=controller,
+                                              new_controller=ODMRcontroller())
+        mw_initialized = self.controller.mw.open_communication(
                                address=self.settings.child("mwsettings", "address").value())
         try:
             self.update_tasks()
@@ -170,27 +180,27 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         info = "Error"
 
         if initialized:
-            info = f"MW source {self.controller['mw'].model}"
+            info = f"MW source {self.controller.mw.model}"
             self.settings.child("mwsettings", "address").setValue(
-                self.controller["mw"].get_address())
+                self.controller.mw.get_address())
             self.settings.child("mwsettings", "power").setValue(
-                self.controller["mw"].get_power().magnitude)
+                self.controller.mw.get_power().magnitude)
             self.update_x_axis()
             # Initialize viewers panel with the future type of data
             self.dte_signal_temp.emit(DataToExport(name='temp_odmr',
-                 data=[DataFromPlugins(name='ODMR', data=[np.zeros(self.x_axis.size)],
-                                       dim='Data1D', labels=['ODMR'],
-                                       axes=[self.x_axis]),
-                       DataFromPlugins(name='Topo', data=[np.array([0])],
-                                       dim='Data0D', labels=['Topo'])]))
+                 data=[DataFromPlugins('ODMR', distribution=DataDistribution['uniform'],
+                                    data=[np.zeros(self.x_axis.size)],
+                                    dim=DataDim['Data1D'], axes=[self.x_axis]),
+                       DataFromPlugins('Topo', data=[np.array([0])], axis=[],
+                                dim=DataDim['Data0D'], labels=['Topo'])]))
         return info, initialized
 
     def close(self):
         """Terminate the communication protocol"""
-        self.controller["mw"].close_communication()
-        self.controller["counter"]["clock"].close()
-        self.controller["counter"]["counter"].close()
-        self.controller["counter"]["ai"].close()
+        self.controller.mw.close_communication()
+        self.controller.clock.close()
+        self.controller.counter.close()
+        self.controller.ai.close()
         
     def grab_data(self, Naverage=1, **kwargs):
         """Start a grab from the detector
@@ -205,9 +215,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         update = True  # to decide if we do the initial set up or not
         self.commit_settings(self.settings.child("acq_settings", "sweep"))
         if self.sweep_mode:
-            self.controller["mw"].reset_sweep_position()
+            self.controller.mw.reset_sweep_position()
         else:
-            self.controller["mw"].reset_list_position()
+            self.controller.mw.reset_list_position()
         
         if 'live' in kwargs:
             if kwargs['live'] == self.live and self.live:
@@ -219,15 +229,15 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         if not update:
              self.configure_tasks()
              self.connect_channels()
-             self.controller["mw"].sweep_on()
+             self.controller.mw.sweep_on()
         else:
             self.update_tasks()
             if self.sweep_mode:
-                self.controller["mw"].set_sweep(start=self.start_f, stop=self.stop_f,
+                self.controller.mw.set_sweep(start=self.start_f, stop=self.stop_f,
                                              step=self.step_f,
                                              power=Q_(self.settings.child("mwsettings", "power").value(),
                                                       ureg.dBm))
-                self.controller["mw"].sweep_on()
+                self.controller.mw.sweep_on()
             else:
                 self.emit_status(ThreadCommand('Update_Status',
                                                ['List mode not supported yet']))
@@ -235,28 +245,28 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         # synchrone version (blocking function)
         # set timing for odmr clock task to the number of pixels
-        self.controller["counter"]["clock"].stop()  # to ensure that the clock is available
-        self.controller["counter"]["clock"].task.CfgImplicitTiming(DAQmx_Val_FiniteSamps,
+        self.controller.clock.stop()  # to ensure that the clock is available
+        self.controller.clock.task.CfgImplicitTiming(DAQmx_Val_FiniteSamps,
                                                                 odmr_length+1)
         # set timing for odmr count task to the number of pixels
-        self.controller["counter"]["counter"].task.CfgImplicitTiming(DAQmx_Val_ContSamps,
+        self.controller.counter.task.CfgImplicitTiming(DAQmx_Val_ContSamps,
                 # count twice for each voltage +1 for starting this task.
                 # This first pulse will start the count task.
                                                                   2*(odmr_length+1))
         # read samples from beginning of acquisition, do not overwrite
-        self.controller["counter"]["counter"].task.SetReadRelativeTo(DAQmx_Val_CurrReadPos)
+        self.controller.counter.task.SetReadRelativeTo(DAQmx_Val_CurrReadPos)
         # do not read first sample
-        self.controller["counter"]["counter"].task.SetReadOffset(0)
+        self.controller.counter.task.SetReadOffset(0)
         # unread data in buffer will be overwritten
-        self.controller["counter"]["counter"].task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
+        self.controller.counter.task.SetReadOverWrite(DAQmx_Val_DoNotOverwriteUnreadSamps)
         # Topo analog input
-        self.controller["counter"]["ai"].task.CfgSampClkTiming('/' + self.clock_channel.name + "InternalOutput",
+        self.controller.ai.task.CfgSampClkTiming('/' + self.clock_channel.name + "InternalOutput",
                                                             self.clock_channel.clock_frequency,
                                                             DAQmx_Val_Rising, DAQmx_Val_ContSamps,
                                                             odmr_length+1)
         try:
-            self.controller["counter"]["ai"].start()
-            self.controller["counter"]["counter"].start()
+            self.controller.ai.start()
+            self.controller.counter.start()
         except Exception as e:
             print(e)
             self.emit_status(ThreadCommand('Update_Status',
@@ -265,8 +275,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         try:
             timeout = 10
-            self.controller["counter"]["clock"].start()
-            self.controller["counter"]["clock"].task.WaitUntilTaskDone(timeout*2*odmr_length)
+            self.controller.clock.start()
+            self.controller.clock.task.WaitUntilTaskDone(timeout*2*odmr_length)
         except Exception as e:
             print(e)
             self.emit_status(ThreadCommand('Update_Status',
@@ -278,7 +288,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         acq_time = odmr_length * time_per_point
      
         
-        read_data = self.controller["counter"]["counter"].readCounter(2*odmr_length+1,
+        read_data = self.controller.counter.readCounter(2*odmr_length+1,
                                                     counting_time=acq_time, read_function="")
         # add up adjoint pixels to also get the counts from the low time of the clock
         data_pl = read_data[:-1:2]
@@ -286,23 +296,24 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # we need to divide by the measurement time to get the PL rate!
         data_pl = 1e-3*data_pl/time_per_point # we show kcts/s
         
-        data_topo = self.controller["counter"]["ai"].readAnalog(1, ClockSettings(
+        data_topo = self.controller.ai.readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
         
         self.dte_signal.emit(DataToExport(name='odmr',
-                                                  data=[DataFromPlugins(name='ODMR', data=[data_pl],
-                                                        dim='Data1D', labels=['PL (kcts/s)'],
-                                                        axes=[self.x_axis]),
-                                                        DataFromPlugins(name='Topo',
-                                                                data=[np.array([np.mean(data_topo)])],
-                                                                dim='Data0D', labels=["Topo (nm)"])]))
+                                          data=[DataFromPlugins('ODMR', distribution=DataDistribution['uniform'],
+                                                                data=[np.zeros(self.x_axis.size)],
+                                                                dim=DataDim['Data1D'], axes=[self.x_axis]),
+                                                DataFromPlugins('Topo', data=[np.array([0])],
+                                                                dim=DataDim['Data0D'], labels=['Topo'],
+                                                                axis=[])]))
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
-        for daq_str in self.controller["counter"].keys():
-            self.controller["counter"][daq_str].close()
-        self.controller["mw"].off()
+        self.controller.clock.close()
+        self.controller.counter.close()
+        self.controller.ai.close()
+        self.controller.mw.off()
         self.emit_status(ThreadCommand('Update_Status', ['Acquisition stopped']))
         return ''
 
@@ -313,7 +324,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             freqs = np.arange(self.start_f.to(ureg.MHz).magnitude,
                               (self.stop_f + self.step_f).to(ureg.MHz).magnitude,
                               self.step_f.to(ureg.MHz).magnitude, dtype=np.float32)
-            self.x_axis = Axis(label="Frequency", units="MHz", data=freqs)
+            self.x_axis = Axis("Frequency", units="MHz", data=freqs, index=0)
         else:
             self.emit_status(ThreadCommand('Update_Status',
                                            ['Several ranges not supported yet']))
@@ -334,6 +345,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
     def create_channels(self):
         """ Create the channels in the NI card to update the tasks."""
         clock_freq = 1.0 / (self.settings.child("counter_settings", "counting_time").value()/1000)
+        
         self.clock_channel = ClockCounter(clock_freq, name=self.settings.child("ni_settings",
                                           "clock_channel").value(), source="Counter")
         
@@ -346,24 +358,26 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
     def configure_tasks(self):
         """ Configure the tasks in the NI card, by calling the update functions of each controller."""
-        self.controller["counter"]["clock"].update_task(channels=[self.clock_channel],
-                                                        # do not configure clock yet, so Nsamples=1
-                                                        clock_settings=ClockSettings(Nsamples=1),
-                                                        trigger_settings=TriggerSettings())
-        self.controller["counter"]["counter"].update_task(channels=[self.counter_channel],
-                                                          clock_settings=ClockSettings(Nsamples=1),
-                                                          trigger_settings=TriggerSettings())
-        self.controller["counter"]["ai"].update_task(channels=[self.topo_channel],
-                                                     clock_settings=ClockSettings(Nsamples=1),
-                                                     trigger_settings=TriggerSettings())
+        self.controller.clock.update_task(channels=[self.clock_channel],
+                                          # do not configure clock yet, so Nsamples=1
+                                          clock_settings=ClockSettings(Nsamples=1),
+                                          trigger_settings=TriggerSettings())
+        
+        self.controller.counter.update_task(channels=[self.counter_channel],
+                                            clock_settings=ClockSettings(Nsamples=1),
+                                            trigger_settings=TriggerSettings())
+        
+        self.controller.ai.update_task(channels=[self.topo_channel],
+                                       clock_settings=ClockSettings(Nsamples=1),
+                                       trigger_settings=TriggerSettings())
 
     def connect_channels(self):
         """ Connect together the channels for synchronization."""
         # connect the pulses from the clock to the counter
-        self.controller["counter"]["counter"].task.SetCISemiPeriodTerm(
+        self.controller.counter.task.SetCISemiPeriodTerm(
             self.counter_channel.name, '/'+self.clock_channel.name + "InternalOutput")
         # define the source of ticks for the counter as self._photon_source
-        self.controller["counter"]["counter"].task.SetCICtrTimebaseSrc(
+        self.controller.counter.task.SetCICtrTimebaseSrc(
             self.counter_channel.name, self.settings.child("counter_settings",
                                                            "source_settings", "photon_channel").value())
         # connect the clock to the trigger channel to give triggers for the microwave
