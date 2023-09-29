@@ -58,14 +58,19 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         {"title": "Acquisition settings", "name": "acq_settings", "type":
           "group", "children": [
               {"title": "Sweep mode?", "name": "sweep", "type": "bool", "value": True},
-              {"title": "Number of ranges", "name": "nb_ranges", "type": "int", "value": 1, "min": 1},
+              {"title": "Number of ranges", "name": "nb_ranges", "type": "int", "value": 1, "min": 1,
+               "readonly": True},
               {"title": "Range parameters", "name": "range0", "type":
                "group", "children":[
                    {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
                    {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
                    {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2},
                ]},
-              {"title": "List mode?", "name": "list", "type": "bool", "value": False}]},
+              {"title": "Dual iso-B mode?", "name": "isoB", "type": "bool", "value": False}]},
+              {"title": "Iso-B frequencies", "name": "isoB_freqs", "type": "group",
+               "visible": False, "children":[
+                   {"title": "Freq 1 (MHz):", "name": "isoB_f1", "type": "float", "value": 2860},
+                   {"title": "Freq 2 (MHz):", "name": "isoB_f2", "type": "float", "value": 2880}]},
         {"title": "Further NI card settings", "name": "ni_settings", "type":
           "group", "children": [
               {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
@@ -85,6 +90,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.step_f = 2 * ureg.MHz
         self.sweep_mode = False
         self.list_mode = False
+        self.isoB = False
+        self.isoB_freqs = []
         self.nb_ranges = 1
         self.live = False  # True during a continuous grab
 
@@ -110,8 +117,10 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
             if param.value() and self.nb_ranges == 1:
                 self.sweep_mode = True
                 self.list_mode = False
+                self.isoB = False
                 self.controller.mw.set_sweep()
-                self.settings.child("acq_settings", "list").setValue(False)
+                self.settings.child("acq_settings", "isoB").setValue(False)
+                self.settings.child("isoB_freqs").hide()
             else:  # we consider the use of several ranges as sweep mode for the user,
                 # but the controller needs to be used in list mode
                 self.sweep_mode = False
@@ -119,24 +128,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.controller.mw.set_list()
                 if param.value():
                     self.settings.child("acq_settings", "list").setValue(False)
+                    self.isoB = False
+                    self.settings.child("isoB_freqs").hide()
 
-        elif param.name() == "list":
-            if param.value():
-                self.sweep_mode = False
-                self.list_mode = True
-                self.controller.mw.set_list()
-                self.settings.child("acq_settings", "sweep").setValue(False)
-            elif self.nb_ranges == 1:
-                self.sweep_mode = True
-                self.list_mode = False
-                self.controller.mw.set_sweep()
-                self.settings.child("acq_settings", "sweep").setValue(True)
-            else:
-                self.sweep_mode = False
-                self.list_mode = True
-                self.controller.mw.set_list()
-                self.settings.child("acq_settings", "sweep").setValue(True)
-                    
         elif param.name() == "nb_ranges":
             self.nb_ranges = param.value()
             self.update_x_axis()
@@ -149,6 +143,33 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         elif param.name() == "step_f":
             self.step_f = param.value() * ureg.MHz
             self.update_x_axis()
+            
+        # isoB settings
+        elif param.name() == "isoB":
+            if param.value():
+                self.sweep_mode = False
+                self.list_mode = True
+                self.isoB = True
+                self.settings.child("isoB_freqs").show()
+                self.controller.mw.set_list()
+                self.settings.child("acq_settings", "sweep").setValue(False)
+            elif self.nb_ranges == 1:
+                self.sweep_mode = True
+                self.list_mode = False
+                self.controller.mw.set_sweep()
+                self.settings.child("acq_settings", "sweep").setValue(True)
+            else:
+                self.sweep_mode = False
+                self.list_mode = True
+                self.controller.mw.set_list()
+                self.settings.child("acq_settings", "sweep").setValue(True)
+
+        elif param.name() == "isoB_f1":
+            self.isoB_freqs[0] = param.value() * ureg.MHz
+
+        elif param.name() == "isoB_f2":
+            self.isoB_freqs[1] = param.value() * ureg.MHz
+
 
     def ini_detector(self, controller=None):
         """Detector communication initialization
@@ -192,7 +213,10 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                     data=[np.zeros(self.x_axis.size)],
                                     dim=DataDim['Data1D'], axes=[self.x_axis]),
                        DataFromPlugins('Topo', data=[np.array([0])], axis=[],
-                                dim=DataDim['Data0D'], labels=['Topo'])]))
+                                       dim=DataDim['Data0D'], labels=['Topo (nm)']),
+                       DataFromPlugins('IsoB_data', axis=[], dim=DataDim['Data0D'],
+                                       data=[np.array([0]), np.array([0]), np.array([0])], 
+                                       labels=['PL1', 'PL2', 'PLdiff'])]))
         return info, initialized
 
     def close(self):
@@ -295,18 +319,32 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         data_pl += read_data[1:-1:2]
         # we need to divide by the measurement time to get the PL rate!
         data_pl = 1e-3*data_pl/time_per_point # we show kcts/s
+
+        # if we are doing an isoB scan, we extract the interesting PL data
+        if self.isoB:
+            data_pl1 = data_pl[0]
+            data_pl2 = data_pl[1]
+            data_pldiff = data_pl1 - data_pl2
+        else:
+            data_pl1 = np.nan
+            data_pl2 = np.nan
+            data_pldiff = np.nan
         
         data_topo = self.controller.ai.readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
         
         self.dte_signal.emit(DataToExport(name='odmr',
-                                          data=[DataFromPlugins('ODMR', distribution=DataDistribution['uniform'],
+                                          data=[DataFromPlugins('ODMR',
+                                                                distribution=DataDistribution['uniform'],
                                                                 data=[np.zeros(self.x_axis.size)],
                                                                 dim=DataDim['Data1D'], axes=[self.x_axis]),
-                                                DataFromPlugins('Topo', data=[np.array([0])],
+                                                DataFromPlugins('Topo', data=[np.array([np.mean(data_topo)])],
                                                                 dim=DataDim['Data0D'], labels=['Topo'],
-                                                                axis=[])]))
+                                                                axis=[]),
+                                                DataFromPlugins('IsoB_data', axis=[], dim=DataDim['Data0D'],
+                                                                data=[data_pl1, data_pl2, data_pldiff], 
+                                                                labels=['PL1', 'PL2', 'PLdiff'])]))
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
