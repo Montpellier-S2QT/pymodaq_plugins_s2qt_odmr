@@ -90,8 +90,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.step_f = 2 * ureg.MHz
         self.sweep_mode = False
         self.list_mode = False
+        self.mw_power = Q_(0, ureg.dBm)
         self.isoB = False
-        self.isoB_freqs = []
+        self.isoB_freqs = [2860 * ureg.MHz, 2880 * ureg.MHz]
         self.nb_ranges = 1
         self.live = False  # True during a continuous grab
 
@@ -109,8 +110,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         if param.name() == "address":
             self.controller.mw.set_address(param.value())
         elif param.name() == "power":
-            power_to_set = Q_(param.value(), ureg.dBm)
-            self.controller.mw.set_cw_params(power=power_to_set)
+            self.mw_power = Q_(param.value(), ureg.dBm)
+            self.controller.mw.set_cw_params(power=self.mw_power)
+            
         
         # Freq sweep settings
         if param.name() == "sweep":
@@ -157,10 +159,12 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.sweep_mode = True
                 self.list_mode = False
                 self.controller.mw.set_sweep()
+                self.settings.child("isoB_freqs").hide()
                 self.settings.child("acq_settings", "sweep").setValue(True)
             else:
                 self.sweep_mode = False
                 self.list_mode = True
+                self.settings.child("isoB_freqs").hide()
                 self.controller.mw.set_list()
                 self.settings.child("acq_settings", "sweep").setValue(True)
 
@@ -208,15 +212,22 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.controller.mw.get_power().magnitude)
             self.update_x_axis()
             # Initialize viewers panel with the future type of data
-            self.dte_signal_temp.emit(DataToExport(name='temp_odmr',
-                 data=[DataFromPlugins('ODMR', distribution=DataDistribution['uniform'],
-                                    data=[np.zeros(self.x_axis.size)],
-                                    dim=DataDim['Data1D'], axes=[self.x_axis]),
-                       DataFromPlugins('Topo', data=[np.array([0])], axis=[],
-                                       dim=DataDim['Data0D'], labels=['Topo (nm)']),
-                       DataFromPlugins('IsoB_data', axis=[], dim=DataDim['Data0D'],
-                                       data=[np.array([0]), np.array([0]), np.array([0])], 
-                                       labels=['PL1', 'PL2', 'PLdiff'])]))
+            data_to_init = [DataFromPlugins('Topo', data=[np.array([0])],
+                                            dim=DataDim['Data0D'], labels=['Topo'])]
+
+            # if we are doing an isoB scan, we extract the interesting PL data
+            if self.isoB:
+                data_to_init.append(DataFromPlugins('IsoB_data', dim=DataDim['Data0D'],
+                                                    data=[np.array([0]), np.array([0]), np.array([0])],
+                                                    labels=['PL1', 'PL2', 'PLdiff']))
+            else:
+                data_to_init.append(DataFromPlugins('ODMR',distribution=DataDistribution['uniform'],
+                                                    data=[np.zeros(self.x_axis.size)],
+                                                    dim=DataDim['Data1D'], axes=[self.x_axis],
+                                                    labels=['ODMR spectrum']))
+            
+            self.dte_signal_temp.emit(DataToExport(name='temp_odmr', data=data_to_init))
+                                      
         return info, initialized
 
     def close(self):
@@ -253,7 +264,10 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         if not update:
              self.configure_tasks()
              self.connect_channels()
-             self.controller.mw.sweep_on()
+             if self.sweep_mode:
+                 self.controller.mw.sweep_on()
+             elif self.list_mode:
+                 self.controller.mw.list_on()
         else:
             self.update_tasks()
             if self.sweep_mode:
@@ -262,10 +276,9 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                                              power=Q_(self.settings.child("mwsettings", "power").value(),
                                                       ureg.dBm))
                 self.controller.mw.sweep_on()
-            else:
-                self.emit_status(ThreadCommand('Update_Status',
-                                               ['List mode not supported yet']))
-                return
+            elif self.isoB:
+                self.controller.mw.set_list(frequency=self.isoB_freqs, power=self.mw_power)
+                self.controller.mw.list_on()
 
         # synchrone version (blocking function)
         # set timing for odmr clock task to the number of pixels
@@ -320,31 +333,32 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         # we need to divide by the measurement time to get the PL rate!
         data_pl = 1e-3*data_pl/time_per_point # we show kcts/s
 
-        # if we are doing an isoB scan, we extract the interesting PL data
-        if self.isoB:
-            data_pl1 = data_pl[0]
-            data_pl2 = data_pl[1]
-            data_pldiff = data_pl1 - data_pl2
-        else:
-            data_pl1 = np.nan
-            data_pl2 = np.nan
-            data_pldiff = np.nan
+        
         
         data_topo = self.controller.ai.readAnalog(1, ClockSettings(
             frequency=self.clock_channel.clock_frequency,
             Nsamples=odmr_length))
+        data_to_export = [DataFromPlugins('Topo', data=[np.array([np.mean(data_topo)])],
+                                          dim=DataDim['Data0D'], labels=['Topo'],
+                                          axis=[])]
+
+        # if we are doing an isoB scan, we extract the interesting PL data
+        if self.isoB:
+            data_to_export.append(DataFromPlugins('IsoB_data', dim=DataDim['Data0D'],
+                                                  data=[np.array([data_pl[0]]),
+                                                        np.array([data_pl[1]]),
+                                                        np.array([data_pl[1]-data_pl[0]])], 
+                                                  labels=['PL1', 'PL2', 'PLdiff']))
+        else:
+            data_to_export.append(DataFromPlugins('ODMR',distribution=DataDistribution['uniform'],
+                                                  data=[np.zeros(self.x_axis.size)],
+                                                  dim=DataDim['Data1D'], axes=[self.x_axis]))
+
+        # if we are fitting, we also add the corresponding data
+        #if self.do_fit:
+        #    pass
         
-        self.dte_signal.emit(DataToExport(name='odmr',
-                                          data=[DataFromPlugins('ODMR',
-                                                                distribution=DataDistribution['uniform'],
-                                                                data=[np.zeros(self.x_axis.size)],
-                                                                dim=DataDim['Data1D'], axes=[self.x_axis]),
-                                                DataFromPlugins('Topo', data=[np.array([np.mean(data_topo)])],
-                                                                dim=DataDim['Data0D'], labels=['Topo'],
-                                                                axis=[]),
-                                                DataFromPlugins('IsoB_data', axis=[], dim=DataDim['Data0D'],
-                                                                data=[data_pl1, data_pl2, data_pldiff], 
-                                                                labels=['PL1', 'PL2', 'PLdiff'])]))
+        self.dte_signal.emit(DataToExport(name='odmr', data=data_to_export))
 
     def stop(self):
         """Stop the current grab hardware wise if necessary."""
