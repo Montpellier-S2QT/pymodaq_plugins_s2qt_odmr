@@ -38,56 +38,69 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
     params = comon_parameters + [
         {"title": "Epsilon", "name": "epsilon", "type": "float",
          "value": 0.1, "visible": False},
-         {"title": "MW source settings", "name": "mwsettings", "type":
-          "group", "children": [
-              {"title": "Address:", "name": "address", "type": "str", "value": ''},
-              {"title": "Power (dBm):", "name": "power", "type": "float", "value": 0}]},
-         {"title": "Counter settings:", "name": "counter_settings",
-          "type": "group", "visible": True, "children": [
-              {"title": "Count time (ms):", "name": "counting_time",
-                 "type": "float", "value": 100., "default": 100., "min": 0.},
-              {"title": "Counting channel:", "name": "counter_channel", "type": "list",
-               "limits": DAQmx.get_NIDAQ_channels(source_type="Counter")},
-              {"title": "Source settings:", "name": "source_settings", "type": "group", "visible": True, "children": [
-                   {"title": "Enable?:", "name": "enable", "type": "bool", "value": False, },
-                   {"title": "Photon source:", "name": "photon_channel", "type": "list",
-                    "limits": DAQmx.getTriggeringSources()},
-                   {"title": "Edge type:", "name": "edge", "type": "list", "limits": Edge.names(), "visible": False},
-                   {"title": "Level:", "name": "level", "type": "float", "value": 1., "visible": False}]}
+        {"title": "MW source settings", "name": "mwsettings", "type": "group", "children": [
+            {"title": "Address:", "name": "address", "type": "str", "value": ''},
+            {"title": "Power (dBm):", "name": "power", "type": "float", "value": 0}]},
+        {"title": "Counter settings:", "name": "counter_settings",
+         "type": "group", "visible": True, "children": [
+            {"title": "Count time (ms):", "name": "counting_time",
+             "type": "float", "value": 100., "default": 100., "min": 0.},
+            {"title": "Counting channel:", "name": "counter_channel", "type": "list",
+             "limits": DAQmx.get_NIDAQ_channels(source_type="Counter")},
+            {"title": "Source settings:", "name": "source_settings", "type": "group",
+             "visible": True, "children": [
+                {"title": "Enable?:", "name": "enable", "type": "bool", "value": False, },
+                {"title": "Photon source:", "name": "photon_channel", "type": "list",
+                  "limits": DAQmx.getTriggeringSources()},
+                {"title": "Edge type:", "name": "edge", "type": "list", "limits": Edge.names(),
+                 "visible": False},
+                {"title": "Level:", "name": "level", "type": "float", "value": 1., "visible": False}]}
          ]},
-        {"title": "Acquisition settings", "name": "acq_settings", "type":
-          "group", "children": [
-              {"title": "Sweep mode?", "name": "sweep", "type": "bool", "value": True},
-              {"title": "Number of ranges", "name": "nb_ranges", "type": "int", "value": 1, "min": 1,
-               "readonly": True},
-              {"title": "Range parameters", "name": "range0", "type":
-               "group", "children":[
-                   {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
-                   {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
-                   {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2},
-               ]},
-              {"title": "Dual iso-B mode?", "name": "isoB", "type": "bool", "value": False}]},
-              {"title": "Iso-B frequencies", "name": "isoB_freqs", "type": "group",
-               "visible": False, "children":[
-                   {"title": "Freq 1 (MHz):", "name": "isoB_f1", "type": "float", "value": 2860},
-                   {"title": "Freq 2 (MHz):", "name": "isoB_f2", "type": "float", "value": 2880}]},
-        {"title": "Further NI card settings", "name": "ni_settings", "type":
-          "group", "children": [
-              {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
-                  'limits': DAQmx.get_NIDAQ_channels(source_type='Counter')},
-              {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
-                  'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
-              {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
-                'limits': DAQmx.getTriggeringSources()},]}
+        {"title": "Acquisition settings", "name": "acq_settings", "type":"group", "children": [
+            {"title": "Sweep mode?", "name": "sweep", "type": "bool", "value": True},
+            {"title": "Number of ranges", "name": "nb_ranges", "type": "int", "value": 1, "min": 1,
+             "max": 4},
+            {"title": "Range 1 parameters", "name": "range1", "type": "group", "children":[
+                {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
+                {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
+                {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2}]},
+            {"title": "Range 2 parameters", "name": "range2", "type": "group", "visible": False,
+             "children":[
+                {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
+                {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
+                {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2}]},
+            {"title": "Range 3 parameters", "name": "range3", "type": "group", "visible": False,
+             "children":[
+                {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
+                {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
+                {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2}]},
+            {"title": "Range 4 parameters", "name": "range4", "type": "group", "visible": False,
+             "children":[
+                {"title": "Start (MHz):", "name": "start_f", "type": "float", "value": 2820},
+                {"title": "Stop (MHz):", "name": "stop_f", "type": "float", "value": 2920},
+                {"title": "Step (MHz):", "name": "step_f", "type": "float", "value": 2}]},
+            {"title": "Dual iso-B mode?", "name": "isoB", "type": "bool", "value": False},
+            {"title": "Iso-B frequencies", "name": "isoB_freqs", "type": "group", "visible": False,
+             "children":[
+                 {"title": "Freq 1 (MHz):", "name": "isoB_f1", "type": "float", "value": 2860},
+                 {"title": "Freq 2 (MHz):", "name": "isoB_f2", "type": "float", "value": 2880}]}]},
+         {"title": "Further NI card settings", "name": "ni_settings", "type": "group", "children": [
+             {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
+              'limits': DAQmx.get_NIDAQ_channels(source_type='Counter')},
+             {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
+              'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
+             {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
+              'limits': DAQmx.getTriggeringSources()}
+         ]}
     ]
 
     def ini_attributes(self):
         self.controller = None
 
         self.x_axis = None
-        self.start_f = 2820 * ureg.MHz
-        self.stop_f = 2920 * ureg.MHz
-        self.step_f = 2 * ureg.MHz
+        self.start_f = [2820 * ureg.MHz]
+        self.stop_f = [2920 * ureg.MHz]
+        self.step_f = [2 * ureg.MHz]
         self.sweep_mode = False
         self.list_mode = False
         self.mw_power = Q_(0, ureg.dBm)
@@ -122,28 +135,54 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.isoB = False
                 self.controller.mw.set_sweep()
                 self.settings.child("acq_settings", "isoB").setValue(False)
-                self.settings.child("isoB_freqs").hide()
+                self.settings.child("acq_settings" ,"isoB_freqs").hide()
             else:  # we consider the use of several ranges as sweep mode for the user,
                 # but the controller needs to be used in list mode
                 self.sweep_mode = False
                 self.list_mode = True
                 self.controller.mw.set_list()
                 if param.value():
-                    self.settings.child("acq_settings", "list").setValue(False)
+                    self.settings.child("acq_settings", "isoB").setValue(False)
                     self.isoB = False
-                    self.settings.child("isoB_freqs").hide()
+                    self.settings.child("acq_settings", "isoB_freqs").hide()
 
         elif param.name() == "nb_ranges":
             self.nb_ranges = param.value()
+            for i in range(1, 5): # max 4 ranges, this is already messy
+                if i <= self.nb_ranges:
+                    self.settings.child("acq_settings", f"range{i}").show()
+                else:
+                    self.settings.child("acq_settings", f"range{i}").hide()
+                    
+            self.start_f = []
+            self.stop_f = []
+            self.step_f = []
+            for i in range(1, self.nb_ranges+1):
+                self.start_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "start_f").value() * ureg.MHz)
+                self.stop_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "stop_f").value() * ureg.MHz)
+                self.step_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "step_f").value() * ureg.MHz)
             self.update_x_axis()
+
         elif param.name() == "start_f":
-            self.start_f = param.value() * ureg.MHz
+            self.start_f = []
+            for i in range(1, self.nb_ranges+1):
+                self.start_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "start_f").value() * ureg.MHz)
             self.update_x_axis()
         elif param.name() == "stop_f":
-            self.stop_f = param.value() * ureg.MHz
+            self.stop_f=[]
+            for i in range(1, self.nb_ranges+1):
+                self.stop_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "stop_f").value() * ureg.MHz)
             self.update_x_axis()
         elif param.name() == "step_f":
-            self.step_f = param.value() * ureg.MHz
+            self.step_f = []
+            for i in range(1, self.nb_ranges+1):
+                self.step_f.append(self.settings.child("acq_settings",
+                                            f"range{i}", "step_f").value() * ureg.MHz)
             self.update_x_axis()
             
         # isoB settings
@@ -152,19 +191,19 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
                 self.sweep_mode = False
                 self.list_mode = True
                 self.isoB = True
-                self.settings.child("isoB_freqs").show()
+                self.settings.child("acq_settings", "isoB_freqs").show()
                 self.controller.mw.set_list()
                 self.settings.child("acq_settings", "sweep").setValue(False)
             elif self.nb_ranges == 1:
                 self.sweep_mode = True
                 self.list_mode = False
                 self.controller.mw.set_sweep()
-                self.settings.child("isoB_freqs").hide()
+                self.settings.child("acq_settings", "isoB_freqs").hide()
                 self.settings.child("acq_settings", "sweep").setValue(True)
             else:
                 self.sweep_mode = False
                 self.list_mode = True
-                self.settings.child("isoB_freqs").hide()
+                self.settings.child("acq_settings", "isoB_freqs").hide()
                 self.controller.mw.set_list()
                 self.settings.child("acq_settings", "sweep").setValue(True)
 
@@ -271,13 +310,23 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         else:
             self.update_tasks()
             if self.sweep_mode:
-                self.controller.mw.set_sweep(start=self.start_f, stop=self.stop_f,
-                                             step=self.step_f,
+                self.controller.mw.set_sweep(start=self.start_f[0], stop=self.stop_f[0],
+                                             step=self.step_f[0],
                                              power=Q_(self.settings.child("mwsettings", "power").value(),
                                                       ureg.dBm))
                 self.controller.mw.sweep_on()
             elif self.isoB:
                 self.controller.mw.set_list(frequency=self.isoB_freqs, power=self.mw_power)
+                self.controller.mw.list_on()
+            else: # list mode, but not isoB, so several ranges
+                range_list = []
+                for i in range(self.nb_ranges):
+                    f = np.arange(self.start_f[i].to("MHz").magnitude,
+                                  (self.stop_f[i].to("MHz").magnitude + self.step_f[i].to("MHz").magnitude),
+                                  self.step_f[i].to("MHz").magnitude)
+                    range_list.append(f)
+                freqs = np.concatenate(tuple(range_list), axis=0) * ureg.MHz
+                self.controller.mw.set_list(frequency=freqs, power=self.mw_power)
                 self.controller.mw.list_on()
 
         # synchrone version (blocking function)
@@ -371,15 +420,14 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
     def update_x_axis(self):
         """Create the frequency list for the ODMR measurement."""
-        if self.nb_ranges == 1:
-            # we can use the sweep mode.
-            freqs = np.arange(self.start_f.to(ureg.MHz).magnitude,
-                              (self.stop_f + self.step_f).to(ureg.MHz).magnitude,
-                              self.step_f.to(ureg.MHz).magnitude, dtype=np.float32)
-            self.x_axis = Axis("Frequency", units="MHz", data=freqs, index=0)
-        else:
-            self.emit_status(ThreadCommand('Update_Status',
-                                           ['Several ranges not supported yet']))
+        range_list = []
+        for i in range(self.nb_ranges):
+            f = np.arange(self.start_f[i].to(ureg.MHz).magnitude,
+                          (self.stop_f[i] + self.step_f[i]).to(ureg.MHz).magnitude,
+                          self.step_f[i].to(ureg.MHz).magnitude, dtype=np.float32)
+            range_list.append(f)
+        freqs = np.concatenate(tuple(range_list), axis=0)
+        self.x_axis = Axis("Frequency", units="MHz", data=freqs, index=0)
 
     def update_tasks(self):
         """Set up the counting tasks synchronized with the MW source
