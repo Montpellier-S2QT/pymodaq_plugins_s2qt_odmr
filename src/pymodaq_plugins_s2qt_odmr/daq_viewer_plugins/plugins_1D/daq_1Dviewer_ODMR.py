@@ -7,11 +7,12 @@ from pymodaq.utils.data import DataFromPlugins, Axis, DataToExport,\
 from pymodaq.control_modules.viewer_utility_classes import DAQ_Viewer_base, \
     comon_parameters, main
 from pymodaq.utils.parameter import Parameter
-from pymodaq.utils.parameter import utils as putils
 
 from pymodaq_plugins_rohdeschwarz.hardware.SMA_SMB_MW_sources import MWsource
 from pymodaq_plugins_daqmx.hardware.national_instruments.daqmx import DAQmx, \
     Edge, ClockSettings, ClockCounter, SemiPeriodCounter, TriggerSettings, AIChannel
+from pymodaq_plugins_s2qt_odmr.hardware.fitting import ODMRFitting
+
 from PyDAQmx import DAQmxConnectTerms, DAQmx_Val_DoNotInvertPolarity, \
      DAQmx_Val_ContSamps, DAQmx_Val_FiniteSamps, DAQmx_Val_CurrReadPos, \
      DAQmx_Val_DoNotOverwriteUnreadSamps, DAQmx_Val_Rising
@@ -49,7 +50,7 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
              "limits": DAQmx.get_NIDAQ_channels(source_type="Counter")},
             {"title": "Source settings:", "name": "source_settings", "type": "group",
              "visible": True, "children": [
-                {"title": "Enable?:", "name": "enable", "type": "bool", "value": False, },
+                {"title": "Enable?:", "name": "enable", "type": "bool", "value": False},
                 {"title": "Photon source:", "name": "photon_channel", "type": "list",
                   "limits": DAQmx.getTriggeringSources()},
                 {"title": "Edge type:", "name": "edge", "type": "list", "limits": Edge.names(),
@@ -84,14 +85,19 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
              "children":[
                  {"title": "Freq 1 (MHz):", "name": "isoB_f1", "type": "float", "value": 2860},
                  {"title": "Freq 2 (MHz):", "name": "isoB_f2", "type": "float", "value": 2880}]}]},
-         {"title": "Further NI card settings", "name": "ni_settings", "type": "group", "children": [
-             {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
-              'limits': DAQmx.get_NIDAQ_channels(source_type='Counter')},
-             {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
-              'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
-             {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
-              'limits': DAQmx.getTriggeringSources()}
-         ]}
+        {"title": "Do fit?", "name": "fit", "type": "bool", "value": False},
+        {"title": "Fitting function", "name": "fit_func", "type": "list",
+         "limits": ODMRFitting.list_functions(), "visible": False},
+        {"title": "Fit results", "name": "fit_results", "type": "text", "value": "",
+         "readonly": True, "visible": False},
+        {"title": "Further NI card settings", "name": "ni_settings", "type": "group", "children": [
+            {'title': 'Clock channel:', 'name': 'clock_channel', 'type': 'list',
+             'limits': DAQmx.get_NIDAQ_channels(source_type='Counter')},
+            {'title': 'Topo channel:', 'name': 'topo_channel', 'type': 'list',
+             'limits': DAQmx.get_NIDAQ_channels(source_type='Analog_Input')},
+            {'title': 'Sync trigger channel:', 'name': 'sync_channel', 'type': 'list',
+             'limits': DAQmx.getTriggeringSources()}
+        ]}
     ]
 
     def ini_attributes(self):
@@ -108,6 +114,8 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
         self.isoB_freqs = [2860 * ureg.MHz, 2880 * ureg.MHz]
         self.nb_ranges = 1
         self.live = False  # True during a continuous grab
+        self.do_fit = False
+        self.fitting_helper = ODMRFitting()
 
     def commit_settings(self, param: Parameter):
         """Apply the consequences of a change of value in the detector
@@ -212,6 +220,20 @@ class DAQ_1DViewer_ODMR(DAQ_Viewer_base):
 
         elif param.name() == "isoB_f2":
             self.isoB_freqs[1] = param.value() * ureg.MHz
+        
+        # fit settings
+        elif param.name() == "fit":
+            self.do_fit = param.value()
+            if self.do_fit:
+                self.settings.child("fit_func").show()
+                self.settings.child("fit_results").show()
+            else:
+                self.settings.child("fit_func").hide()
+                self.settings.child("fit_results").hide()
+
+        elif param.name() == "fit_func":
+            self.fitting_helper.set_fit_function(param.value())
+        # fit results is readonly
 
 
     def ini_detector(self, controller=None):
